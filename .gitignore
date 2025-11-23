@@ -1,8 +1,4 @@
-﻿logs/
-output/
-uploads/
-temp/
-logs/*
+﻿logs/*
 !logs/.gitkeep
 output/*
 !output/.gitkeep
@@ -10,3 +6,4 @@ uploads/*
 !uploads/.gitkeep
 temp/*
 !temp/.gitkeep
+
