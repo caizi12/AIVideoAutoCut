@@ -1,0 +1,86 @@
+{
+  "llm": {
+    "openai_api_key": "test-key-123",
+    "openai_base_url": "https://api.openai.com/v1",
+    "openai_model": "gpt-3.5-turbo",
+    "anthropic_api_key": "",
+    "anthropic_model": "claude-3-sonnet-20240229",
+    "gemini_api_key": "",
+    "kimi_api_key": "",
+    "spark_api_key": "",
+    "spark_api_secret": "",
+    "qwen_api_key": "test123",
+    "ernie_api_key": "",
+    "ernie_secret_key": "",
+    "chatglm_api_key": "",
+    "deepseek_api_key": "sk-c365a0db45d146a091b5437f78d9b228",
+    "tongyi_api_key": "sk-2512b033e37b41e69fc14b39daf2dc57",
+    "tongyi_secret_key": "",
+    "wenxin_api_key": "",
+    "wenxin_secret_key": "",
+    "claude_api_key": "",
+    "default_model": "deepseek"
+  },
+  "vision": {
+    "gpt4v_api_key": "",
+    "gpt4v_model": "gpt-4-vision-preview",
+    "claude_vision_api_key": "",
+    "gemini_vision_api_key": "",
+    "qwen_vl_api_key": "sk-2512b033e37b41e69fc14b39daf2dc57",
+    "baidu_vision_api_key": "",
+    "baidu_vision_secret_key": "",
+    "tencent_vision_secret_id": "",
+    "tencent_vision_secret_key": "",
+    "tongyi_vl_api_key": "sk-2512b033e37b41e69fc14b39daf2dc57",
+    "openai_vision_api_key": "",
+    "default_model": "qianwen_vl",
+    "use_local_yolo": true,
+    "use_local_clip": false
+  },
+  "tts_model": {
+    "azure_tts_key": "",
+    "azure_tts_region": "eastasia",
+    "enable_edge_tts": true,
+    "edge_tts_voice": "zh-CN-XiaoxiaoNeural",
+    "enable_gtts": false,
+    "gtts_lang": "zh-CN",
+    "enable_voice_clone": true,
+    "voice_clone_model_path": "D:/Users/LW/voice_clone-0.1.1/checkpoints_v2",
+    "voice_clone_executable_path": "D:/Users/LW/voice_clone-0.1.1/voice_clone.exe",
+    "voice_pro_enabled": true,
+    "voice_pro_root": "F:/Users/LW/voice-pro-3.1.4",
+    "voice_pro_python_exe": "F:/Users/LW/voice-pro-3.1.4/installer_files/env/python.exe",
+    "voice_pro_tts_script": "voicepro_tts_cli.py",
+    "default_tts": "edge"
+  },
+  "proxy": {
+    "use_proxy": false,
+    "proxy_type": "海外线路",
+    "proxy_url": "",
+    "proxy_domestic_url": ""
+  },
+  "tts": {
+    "enable_silence_split": true,
+    "silence_threshold": 50,
+    "vox_speed": 3.0,
+    "vox_steps": 10
+  },
+  "censor": {
+    "enable_censor": true,
+    "censor_tool": "国内版剪映",
+    "custom_words": []
+  },
+  "global": {
+    "vision_model_type": "2.5推理模型",
+    "enable_video_transfer": false,
+    "language": "简体中文",
+    "auto_convert_model": true,
+    "enable_ai_censor": false,
+    "enable_sound": true
+  },
+  "local_model": {
+    "force_cpu": false,
+    "asr_precision": "float32",
+    "enable_resolution_limit": false
+  }
+}
