@@ -105,8 +105,8 @@ class CommentaryServiceEnhanced:
                 'video_path': data.get('video_path', ''),
                 'script': data.get('script', ''),
                 'voice': data.get('voice', 'zh-CN-XiaoxiaoNeural'),
-                # 默认使用本地 pyttsx3，避免在无网络环境下频繁触发云TTS失败
-                'tts_engine': data.get('tts_engine') or data.get('ttsEngine') or 'pyttsx3',
+                # 最小依赖方案默认使用已安装的 Edge-TTS，避免强依赖 pyttsx3/pyobjc。
+                'tts_engine': data.get('tts_engine') or data.get('ttsEngine') or 'edge-tts',
                 'auto_subtitle': data.get('auto_subtitle', True),
                 'auto_bgm': data.get('auto_bgm', True),
                 'style': data.get('style', 'professional'),
@@ -760,30 +760,29 @@ class CommentaryServiceEnhanced:
                 preferred_engine = 'voice-pro'
             elif raw_engine in ('azure', 'azure-tts'):
                 # 原创解说流程不再直接调用在线 Azure TTS，这里退回到本地引擎
-                preferred_engine = 'pyttsx3'
+                preferred_engine = 'edge-tts'
             elif raw_engine in ('gtts', 'google', 'google-tts'):
-                # gTTS 依赖 Google 网络，在当前环境下易失败，统一退回到本地引擎
-                preferred_engine = 'pyttsx3'
+                # gTTS 依赖 Google 网络，在当前环境下易失败，统一退回到 Edge-TTS
+                preferred_engine = 'edge-tts'
             elif raw_engine in ('pyttsx3', 'local', 'offline'):
                 preferred_engine = 'pyttsx3'
             elif raw_engine in ('edge', 'edge-tts'):
-                # Edge-TTS 在国内网络下易403，这里统一退回到本地引擎
-                preferred_engine = 'pyttsx3'
+                preferred_engine = 'edge-tts'
 
-            # Voice Clone 模式：优先尝试本地语音克隆链路，失败时再退回普通TTS（本地引擎）
+            # Voice Clone 模式：优先尝试本地语音克隆链路，失败时再退回普通TTS
             if voice_clone_mode and getattr(self, 'voice_clone_engine', None):
                 logger.info(f'🎤 用户选择了 Voice Clone 引擎，音色ID: {voice}')
                 vc_rel = self._generate_voiceover_with_voice_clone(full_text, voice, task_id)
                 if vc_rel:
                     return vc_rel
                 else:
-                    logger.warning(f'⚠️ Voice Clone 生成失败，将使用普通TTS（本地引擎）备选')
+                    logger.warning('⚠️ Voice Clone 生成失败，将使用普通TTS备选')
                     # Voice Clone 失败时，如果 voice 是 clone-* 格式，需要转换为普通TTS支持的音色
                     if voice.startswith('clone-'):
                         voice = 'zh-CN-XiaoxiaoNeural'
                         logger.info(f'🔄 已将Voice Clone音色转换为普通中文音色: {voice}')
             elif voice_clone_mode:
-                logger.warning(f'⚠️ Voice Clone 引擎未初始化，将使用普通TTS（本地引擎）备选')
+                logger.warning('⚠️ Voice Clone 引擎未初始化，将使用普通TTS备选')
                 if voice.startswith('clone-'):
                     voice = 'zh-CN-XiaoxiaoNeural'
                     logger.info(f'🔄 已将Voice Clone音色转换为普通中文音色: {voice}')
@@ -796,44 +795,47 @@ class CommentaryServiceEnhanced:
 
             success = False
 
-            # 原创解说流程强制使用本地 pyttsx3 引擎，不再调用 Edge-TTS / gTTS / Azure 等在线引擎
             available = list(getattr(self.tts_engine, 'available_engines', []) or [])
-            if 'pyttsx3' not in available:
-                logger.warning('⚠️ 全局引擎列表中未声明 pyttsx3，将直接尝试调用本地 pyttsx3 引擎')
+            if not preferred_engine:
+                preferred_engine = 'edge-tts' if 'edge-tts' in available else (available[0] if available else 'edge-tts')
 
-            engine0 = 'pyttsx3'
+            fallback_engine = None
+            if preferred_engine != 'edge-tts' and 'edge-tts' in available:
+                fallback_engine = 'edge-tts'
+            elif preferred_engine != 'pyttsx3' and 'pyttsx3' in available:
+                fallback_engine = 'pyttsx3'
 
-            # 1）首选且唯一的 TTS 引擎：本地 pyttsx3
+            # 1）首选 TTS 引擎：最小方案优先 Edge-TTS；若用户安装了本地引擎也可显式选择
             try:
-                logger.info(f'🎵 正在调用 {engine0} 引擎，音色: {voice}')
+                logger.info(f'🎵 正在调用 {preferred_engine} 引擎，音色: {voice}')
                 success = self.tts_engine.synthesize(
                     text=full_text,
                     output_path=str(out_path),
-                    engine=engine0,
+                    engine=preferred_engine,
                     voice=voice,
                     rate='+0%',
                     volume='+0%'
                 )
                 if success:
-                    logger.info(f'✅ {engine0} 引擎合成成功')
+                    logger.info(f'✅ {preferred_engine} 引擎合成成功')
             except Exception as e:
-                logger.error(f"❌ 首选 TTS 引擎({engine0}) 合成失败: {e}", exc_info=True)
+                logger.error(f"❌ 首选 TTS 引擎({preferred_engine}) 合成失败: {e}", exc_info=True)
                 success = False
 
-            # 2）额外的兜底再尝试一次 pyttsx3（极端情况下前一次调用写盘失败）
-            if not success or not out_path.exists():
+            # 2）如果有可用备选引擎，再尝试一次
+            if (not success or not out_path.exists()) and fallback_engine:
                 try:
-                    logger.info('🎵 首次调用失败，再次尝试本地 pyttsx3 引擎兜底')
+                    logger.info(f'🎵 首次调用失败，尝试 {fallback_engine} 引擎兜底')
                     success = self.tts_engine.synthesize(
                         text=full_text,
                         output_path=str(out_path),
-                        engine='pyttsx3',
+                        engine=fallback_engine,
                         voice=voice,
                         rate='+0%',
                         volume='+0%'
                     )
                 except Exception as e:
-                    logger.error(f"❌ 本地 pyttsx3 兜底合成仍然失败: {e}", exc_info=True)
+                    logger.error(f"❌ 兜底 TTS 引擎({fallback_engine}) 合成仍然失败: {e}", exc_info=True)
                     success = False
 
             if not success or not out_path.exists():
@@ -952,7 +954,8 @@ class CommentaryServiceEnhanced:
                 # 兜底：如果路径在 TEMP outputs 下，尽量构造相对路径
                 try:
                     rel = p.relative_to(OUTPUTS_DIR)
-                    rel_str = f"temp/outputs/{str(rel).replace('\\', '/')}"
+                    rel_norm = str(rel).replace('\\', '/')
+                    rel_str = f"temp/outputs/{rel_norm}"
                 except Exception:
                     rel_str = str(p).replace('\\', '/')
 

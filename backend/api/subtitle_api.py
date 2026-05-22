@@ -7,16 +7,29 @@
 from flask import Blueprint, request, jsonify
 import logging
 import os
+import shutil
+import subprocess
+import threading
+import uuid
 from datetime import datetime
 import json
+from pathlib import Path
 from backend.config.paths import SUBTITLE_STYLES
+
+BASE_DIR = Path(__file__).resolve().parents[2]
+
+try:
+    from backend.config.paths import FONTS_DIR, DEFAULT_FONT_NAME
+except Exception:
+    FONTS_DIR = BASE_DIR / 'backend' / 'assets' / 'fonts'
+    DEFAULT_FONT_NAME = '微软雅黑'
 
 subtitle_bp = Blueprint('subtitle', __name__)
 logger = logging.getLogger(__name__)
 
 
-@subtitle_bp.route('/api/subtitle/generate', methods=['POST'])
-def generate_subtitle():
+@subtitle_bp.route('/api/subtitle/generate_legacy', methods=['POST'])
+def generate_subtitle_legacy():
     """旧版字幕生成入口（已废弃）
 
     实际的自动字幕流程已经由主应用中的 /api/subtitle/generate 路由
@@ -31,6 +44,720 @@ def generate_subtitle():
         'msg': '当前字幕生成已由主应用中的 /api/subtitle/generate 实现（faster-whisper），本旧版入口不再返回示例字幕，请在编辑器或项目流程中使用新的接口。',
         'data': None
     }), 410
+
+
+def _resolve_material_path(path_value):
+    """将数据库素材路径解析为本机可读取路径。"""
+    if not path_value:
+        return None
+
+    path_text = str(path_value)
+    candidate = Path(path_text)
+    if candidate.is_absolute():
+        return candidate
+    return BASE_DIR / path_text.lstrip('/\\')
+
+
+def _format_segment(segment):
+    try:
+        return {
+            'start': float(segment.start or 0),
+            'end': float(segment.end or 0),
+            'text': (segment.text or '').strip()
+        }
+    except Exception:
+        return {
+            'start': float(getattr(segment, 'start', 0.0) or 0.0),
+            'end': float(getattr(segment, 'end', 0.0) or 0.0),
+            'text': (getattr(segment, 'text', '') or '').strip()
+        }
+
+
+def _get_ffmpeg_executable():
+    """获取可用的 FFmpeg 可执行文件路径。"""
+    ffmpeg_path = shutil.which('ffmpeg')
+    if ffmpeg_path:
+        return ffmpeg_path
+
+    try:
+        import imageio_ffmpeg
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception:
+        return None
+
+
+def _json_safe_task_update(db_manager, task_id, status, progress=None, output_data=None, error_message=None):
+    """统一更新任务状态，兼容不同数据库管理器实现。"""
+    if db_manager is None:
+        return
+    try:
+        if progress is not None and hasattr(db_manager, 'update_task_progress'):
+            db_manager.update_task_progress(task_id, float(progress))
+        if hasattr(db_manager, 'update_task_status'):
+            db_manager.update_task_status(task_id, status, output_data=output_data, error_message=error_message)
+    except Exception as e:
+        logger.warning(f'字幕任务状态更新失败: {task_id}, {e}')
+
+
+def _update_project_status(db_manager, project_id, status):
+    """更新项目状态，失败不影响任务主流程。"""
+    if not db_manager or not project_id or not hasattr(db_manager, 'update_project'):
+        return
+    try:
+        db_manager.update_project(project_id, {'status': status})
+    except Exception as e:
+        logger.warning(f'项目状态更新失败: {project_id}, {status}, {e}')
+
+
+def _extract_audio_from_project(data, db_manager):
+    """根据项目素材定位或提取可供 ASR 使用的音频。"""
+    project_id = data.get('project_id')
+    if not project_id:
+        raise ValueError('缺少项目ID')
+    if db_manager is None:
+        raise RuntimeError('字幕生成服务未绑定数据库管理器')
+
+    materials = db_manager.get_materials(project_id) or []
+    audio_mats = [m for m in materials if m.get('type') == 'audio']
+    video_mats = [m for m in materials if m.get('type') == 'video']
+
+    if audio_mats:
+        audio_path = _resolve_material_path(audio_mats[0].get('path'))
+        if audio_path and audio_path.exists():
+            return audio_path, False
+        raise FileNotFoundError('音频素材文件不存在')
+
+    if not video_mats:
+        raise FileNotFoundError('项目中未找到可用的音频或视频素材')
+
+    video_path = _resolve_material_path(video_mats[0].get('path'))
+    if not video_path or not video_path.exists():
+        raise FileNotFoundError('项目视频素材文件不存在')
+
+    tmp_dir = BASE_DIR / 'temp'
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+    audio_path = tmp_dir / f'{uuid.uuid4().hex}.wav'
+    ffmpeg_path = _get_ffmpeg_executable()
+    if not ffmpeg_path:
+        raise RuntimeError('系统未检测到 FFmpeg，请安装后重试，或先添加音频素材')
+
+    cmd = [
+        ffmpeg_path, '-y', '-i', str(video_path),
+        '-vn', '-ac', '1', '-ar', '16000',
+        '-f', 'wav', str(audio_path)
+    ]
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    if proc.returncode != 0:
+        logger.error(f'FFmpeg 提取音频失败: {proc.stderr[:500]}')
+        raise RuntimeError('提取音频失败：视频编码不被支持或文件不可读取')
+    return audio_path, True
+
+
+def _load_whisper_model(data):
+    """加载 faster-whisper 模型，GPU 不可用时自动回退 CPU。"""
+    try:
+        from faster_whisper import WhisperModel
+    except Exception as e:
+        raise RuntimeError(f'缺少依赖 faster-whisper：{e}')
+
+    model_size = (data.get('model_size') or 'tiny').strip()
+    device_req = (data.get('device') or 'auto').lower()
+    compute_type = (data.get('compute_type') or '').lower()
+    if device_req == 'cpu':
+        device = 'cpu'
+        compute_type = compute_type or 'int8'
+    elif device_req in ('cuda', 'gpu'):
+        device = 'cuda'
+        compute_type = compute_type or 'float16'
+    else:
+        device = 'cuda'
+        compute_type = compute_type or 'float16'
+
+    try:
+        return WhisperModel(model_size, device=device, compute_type=compute_type)
+    except Exception:
+        return WhisperModel(model_size, device='cpu', compute_type='int8')
+
+
+def _format_ass_time(seconds):
+    """将秒数转换为 ASS 时间格式。"""
+    total = max(0.0, float(seconds or 0.0))
+    hours = int(total // 3600)
+    minutes = int((total % 3600) // 60)
+    secs = int(total % 60)
+    centis = int((total - int(total)) * 100)
+    return f'{hours}:{minutes:02d}:{secs:02d}.{centis:02d}'
+
+
+def _normalize_hex_color(value, default='#FFFFFF'):
+    """标准化前端传入的十六进制颜色。"""
+    text = str(value or default).strip()
+    if text.startswith('#'):
+        text = text[1:]
+    if len(text) == 3:
+        text = ''.join(ch + ch for ch in text)
+    if len(text) != 6:
+        text = str(default).lstrip('#')
+    try:
+        int(text, 16)
+    except Exception:
+        text = str(default).lstrip('#')
+    return '#' + text.upper()
+
+
+def _hex_to_ass_color(value, alpha='00'):
+    """ASS 颜色使用 AABBGGRR 顺序。"""
+    text = _normalize_hex_color(value).lstrip('#')
+    red = text[0:2]
+    green = text[2:4]
+    blue = text[4:6]
+    return f'&H{alpha}{blue}{green}{red}'
+
+
+def _escape_ass_text(text):
+    """转义 ASS 事件文本，避免样式控制符污染字幕内容。"""
+    return (
+        str(text or '')
+        .replace('{', '(')
+        .replace('}', ')')
+        .replace('\r\n', '\n')
+        .replace('\r', '\n')
+        .replace('\n', r'\N')
+        .strip()
+    )
+
+
+def _sanitize_subtitles(raw_subtitles):
+    """清洗前端提交的字幕片段。"""
+    if not isinstance(raw_subtitles, list):
+        return []
+
+    subtitles = []
+    for item in raw_subtitles:
+        if not isinstance(item, dict):
+            continue
+        text = str(item.get('text') or '').strip()
+        if not text:
+            continue
+        try:
+            start = max(0.0, float(item.get('start') or 0.0))
+            end = max(start + 0.1, float(item.get('end') or 0.0))
+        except Exception:
+            continue
+        subtitles.append({'start': start, 'end': end, 'text': text})
+    return subtitles
+
+
+def _resolve_video_path(data, db_manager):
+    """从请求或项目素材中定位需要合成字幕的视频。"""
+    video_path = data.get('video_path')
+    if video_path:
+        candidate = _resolve_material_path(video_path)
+        if candidate and candidate.exists():
+            return candidate
+
+    project_id = data.get('project_id')
+    if project_id and db_manager is not None:
+        materials = db_manager.get_materials(project_id) or []
+        for material in materials:
+            if material.get('type') != 'video':
+                continue
+            candidate = _resolve_material_path(material.get('path'))
+            if candidate and candidate.exists():
+                return candidate
+
+    return None
+
+
+def _build_ass_content(subtitles, style):
+    """根据统一样式生成 ASS 字幕内容。"""
+    position = (style.get('position') or 'bottom').strip().lower()
+    alignment_map = {'bottom': 2, 'center': 5, 'top': 8}
+    alignment = alignment_map.get(position, 2)
+
+    font_family = (
+        style.get('font_family')
+        or style.get('fontFamily')
+        or style.get('font')
+        or DEFAULT_FONT_NAME
+    )
+    font_family = str(font_family).strip() or DEFAULT_FONT_NAME
+
+    try:
+        font_size = int(float(style.get('font_size') or style.get('fontSize') or 48))
+    except Exception:
+        font_size = 48
+    font_size = max(12, min(160, font_size))
+
+    font_color = style.get('font_color') or style.get('fontColor') or '#FFFFFF'
+    bg_color = style.get('bg_color') or style.get('bgColor') or '#000000'
+    stroke_color = style.get('stroke_color') or style.get('strokeColor') or bg_color
+    bold = -1 if bool(style.get('bold', True)) else 0
+
+    primary = _hex_to_ass_color(font_color, '00')
+    outline = _hex_to_ass_color(stroke_color, '00')
+    back = _hex_to_ass_color(bg_color, '80')
+    border_style = 3 if bg_color else 1
+
+    lines = [
+        '[Script Info]',
+        'ScriptType: v4.00+',
+        'PlayResX: 1920',
+        'PlayResY: 1080',
+        'ScaledBorderAndShadow: yes',
+        '',
+        '[V4+ Styles]',
+        'Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding',
+        f'Style: Default,{font_family},{font_size},{primary},{primary},{outline},{back},{bold},0,0,0,100,100,0,0,{border_style},3,0,{alignment},80,80,70,1',
+        '',
+        '[Events]',
+        'Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text'
+    ]
+
+    for subtitle in subtitles:
+        lines.append(
+            'Dialogue: 0,'
+            f'{_format_ass_time(subtitle["start"])},'
+            f'{_format_ass_time(subtitle["end"])},'
+            f'Default,,0,0,0,,{_escape_ass_text(subtitle["text"])}'
+        )
+
+    return '\n'.join(lines) + '\n'
+
+
+def _escape_filter_path(path):
+    """转义 FFmpeg subtitles 滤镜中的本地路径。"""
+    text = str(path).replace('\\', '/')
+    return text.replace(':', r'\:').replace("'", r"\'")
+
+
+def _ffmpeg_has_filter(ffmpeg_path, filter_name):
+    """检测当前 FFmpeg 是否支持指定滤镜。"""
+    try:
+        proc = subprocess.run(
+            [ffmpeg_path, '-hide_banner', '-filters'],
+            capture_output=True,
+            text=True,
+            timeout=8
+        )
+        return proc.returncode == 0 and filter_name in (proc.stdout or '')
+    except Exception:
+        return False
+
+
+def _resolve_font_file(style):
+    """从前端字体名解析到本地字体文件。"""
+    font_value = (
+        style.get('font_file')
+        or style.get('fontFile')
+        or style.get('font_family')
+        or style.get('fontFamily')
+        or style.get('font')
+        or ''
+    )
+    text = str(font_value).strip()
+    candidate = Path(text)
+    if text and candidate.is_absolute() and candidate.exists():
+        return candidate
+
+    aliases = {
+        'Microsoft YaHei': 'wryh.ttf',
+        '微软雅黑': 'wryh.ttf',
+        'PingFang SC': 'wryh.ttf',
+        'Source Han Sans SC': '思源宋体-Bold.otf',
+        '思源黑体': '思源宋体-Bold.otf',
+        'SimHei': 'wryh.ttf',
+        '黑体': 'wryh.ttf',
+        'Arial': 'wryh.ttf',
+    }
+    names = []
+    if text in aliases:
+        names.append(aliases[text])
+    if text:
+        names.extend([text, f'{text}.ttf', f'{text}.otf'])
+    names.append('wryh.ttf')
+
+    for name in names:
+        path = Path(FONTS_DIR) / name
+        if path.exists():
+            return path
+    return None
+
+
+def _wrap_text_for_width(draw, text, font, max_width):
+    """按像素宽度给字幕断行，适配中文连续文本。"""
+    paragraphs = str(text or '').splitlines() or ['']
+    lines = []
+    for paragraph in paragraphs:
+        current = ''
+        for ch in paragraph:
+            trial = current + ch
+            bbox = draw.textbbox((0, 0), trial, font=font)
+            if bbox[2] - bbox[0] <= max_width or not current:
+                current = trial
+            else:
+                lines.append(current)
+                current = ch
+        if current:
+            lines.append(current)
+    return lines[:3] or ['']
+
+
+def _draw_subtitle_on_frame(frame, subtitle_text, style, font_file):
+    """使用 Pillow 在单帧上绘制字幕。"""
+    from PIL import Image, ImageDraw, ImageFont
+
+    image = Image.fromarray(frame[:, :, ::-1]).convert('RGBA')
+    overlay = Image.new('RGBA', image.size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+    width, height = image.size
+
+    try:
+        font_size = int(float(style.get('font_size') or style.get('fontSize') or 48))
+    except Exception:
+        font_size = 48
+    font_size = max(12, min(160, font_size))
+
+    if font_file:
+        font = ImageFont.truetype(str(font_file), font_size)
+    else:
+        font = ImageFont.load_default()
+
+    max_text_width = int(width * 0.86)
+    lines = _wrap_text_for_width(draw, subtitle_text, font, max_text_width)
+    line_boxes = [draw.textbbox((0, 0), line, font=font, stroke_width=2) for line in lines]
+    line_heights = [box[3] - box[1] for box in line_boxes]
+    text_width = max((box[2] - box[0] for box in line_boxes), default=0)
+    line_gap = max(6, int(font_size * 0.18))
+    text_height = sum(line_heights) + line_gap * max(0, len(lines) - 1)
+    pad_x = max(14, int(font_size * 0.45))
+    pad_y = max(8, int(font_size * 0.24))
+
+    position = (style.get('position') or 'bottom').strip().lower()
+    box_width = min(width - 24, text_width + pad_x * 2)
+    box_height = text_height + pad_y * 2
+    left = int((width - box_width) / 2)
+    if position == 'top':
+        top = int(height * 0.09)
+    elif position == 'center':
+        top = int((height - box_height) / 2)
+    else:
+        top = int(height - box_height - height * 0.09)
+    top = max(8, min(height - box_height - 8, top))
+
+    bg_hex = _normalize_hex_color(style.get('bg_color') or style.get('bgColor') or '#000000')
+    bg_rgb = tuple(int(bg_hex[i:i + 2], 16) for i in (1, 3, 5))
+    draw.rounded_rectangle(
+        [left, top, left + box_width, top + box_height],
+        radius=max(6, int(font_size * 0.16)),
+        fill=(*bg_rgb, 178)
+    )
+
+    font_hex = _normalize_hex_color(style.get('font_color') or style.get('fontColor') or '#FFFFFF')
+    font_rgb = tuple(int(font_hex[i:i + 2], 16) for i in (1, 3, 5))
+    stroke_hex = _normalize_hex_color(style.get('stroke_color') or style.get('strokeColor') or '#000000')
+    stroke_rgb = tuple(int(stroke_hex[i:i + 2], 16) for i in (1, 3, 5))
+
+    y = top + pad_y
+    for index, line in enumerate(lines):
+        box = line_boxes[index]
+        line_width = box[2] - box[0]
+        x = int(left + (box_width - line_width) / 2)
+        draw.text(
+            (x, y),
+            line,
+            font=font,
+            fill=(*font_rgb, 255),
+            stroke_width=2,
+            stroke_fill=(*stroke_rgb, 255)
+        )
+        y += line_heights[index] + line_gap
+
+    import numpy as np
+    composed = Image.alpha_composite(image, overlay).convert('RGB')
+    return np.array(composed)[:, :, ::-1]
+
+
+def _render_video_with_pillow(video_path, output_path, subtitles, style, ffmpeg_path):
+    """OpenCV + Pillow 后备渲染：逐帧绘制字幕，再合并原音频。"""
+    import cv2
+
+    cap = cv2.VideoCapture(str(video_path))
+    if not cap.isOpened():
+        raise RuntimeError('无法打开视频文件')
+
+    fps = cap.get(cv2.CAP_PROP_FPS) or 25
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH) or 0)
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0)
+    if width <= 0 or height <= 0:
+        cap.release()
+        raise RuntimeError('无法读取视频尺寸')
+
+    temp_video = output_path.with_suffix('.silent.mp4')
+    writer = cv2.VideoWriter(
+        str(temp_video),
+        cv2.VideoWriter_fourcc(*'mp4v'),
+        fps,
+        (width, height)
+    )
+    if not writer.isOpened():
+        cap.release()
+        raise RuntimeError('无法创建临时视频文件')
+
+    font_file = _resolve_font_file(style)
+    frame_index = 0
+    subtitle_index = 0
+    try:
+        while True:
+            ok, frame = cap.read()
+            if not ok:
+                break
+            current_time = frame_index / fps
+            while subtitle_index < len(subtitles) and current_time > subtitles[subtitle_index]['end']:
+                subtitle_index += 1
+            if (
+                subtitle_index < len(subtitles)
+                and subtitles[subtitle_index]['start'] <= current_time <= subtitles[subtitle_index]['end']
+            ):
+                frame = _draw_subtitle_on_frame(frame, subtitles[subtitle_index]['text'], style, font_file)
+            writer.write(frame)
+            frame_index += 1
+    finally:
+        cap.release()
+        writer.release()
+
+    cmd = [
+        ffmpeg_path,
+        '-y',
+        '-i', str(temp_video),
+        '-i', str(video_path),
+        '-map', '0:v:0',
+        '-map', '1:a?',
+        '-c:v', 'libx264',
+        '-preset', 'veryfast',
+        '-crf', '20',
+        '-c:a', 'copy',
+        '-shortest',
+        '-movflags', '+faststart',
+        str(output_path)
+    ]
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    try:
+        temp_video.unlink(missing_ok=True)
+    except Exception:
+        pass
+    if proc.returncode != 0:
+        logger.error(f'合并字幕视频音频失败: {proc.stderr[-1000:]}')
+        raise RuntimeError('字幕视频渲染完成，但合并原音频失败')
+
+
+def create_generate_subtitle_handler(db_manager):
+    """创建自动字幕生成处理函数。"""
+    def generate_subtitle():
+        """基于项目音/视频素材生成自动字幕。"""
+        try:
+            data = request.get_json() or {}
+            project_id = data.get('project_id')
+            language = (data.get('language') or 'zh').split('-')[0]
+            model_size = (data.get('model_size') or 'tiny').strip()
+
+            if not project_id:
+                return jsonify({'code': 1, 'msg': '缺少项目ID', 'data': None}), 400
+            if db_manager is None:
+                return jsonify({'code': 1, 'msg': '字幕生成服务未绑定数据库管理器', 'data': None}), 500
+
+            materials = db_manager.get_materials(project_id) or []
+            audio_mats = [m for m in materials if m.get('type') == 'audio']
+            video_mats = [m for m in materials if m.get('type') == 'video']
+
+            audio_path = None
+            cleanup_tmp = False
+
+            if audio_mats:
+                audio_path = _resolve_material_path(audio_mats[0].get('path'))
+            elif video_mats:
+                video_path = _resolve_material_path(video_mats[0].get('path'))
+                if not video_path or not video_path.exists():
+                    return jsonify({'code': 1, 'msg': '项目视频素材文件不存在', 'data': None}), 400
+
+                tmp_dir = BASE_DIR / 'temp'
+                tmp_dir.mkdir(parents=True, exist_ok=True)
+                audio_path = tmp_dir / f'{uuid.uuid4().hex}.wav'
+                ffmpeg_path = _get_ffmpeg_executable()
+                if not ffmpeg_path:
+                    return jsonify({'code': 1, 'msg': '系统未检测到 FFmpeg，请安装后重试，或先添加音频素材', 'data': None}), 500
+
+                cmd = [
+                    ffmpeg_path, '-y', '-i', str(video_path),
+                    '-vn', '-ac', '1', '-ar', '16000',
+                    '-f', 'wav', str(audio_path)
+                ]
+                try:
+                    proc = subprocess.run(cmd, capture_output=True, text=True)
+                except FileNotFoundError:
+                    return jsonify({'code': 1, 'msg': 'FFmpeg 可执行文件不可用，请检查安装路径或先添加音频素材', 'data': None}), 500
+                if proc.returncode != 0:
+                    logger.error(f'FFmpeg 提取音频失败: {proc.stderr[:300]}')
+                    return jsonify({'code': 1, 'msg': '提取音频失败：视频编码不被支持或文件不可读取', 'data': None}), 500
+                cleanup_tmp = True
+            else:
+                return jsonify({'code': 1, 'msg': '项目中未找到可用的音频或视频素材', 'data': None}), 400
+
+            if not audio_path or not Path(audio_path).exists():
+                return jsonify({'code': 1, 'msg': '音频素材文件不存在', 'data': None}), 400
+
+            try:
+                from faster_whisper import WhisperModel
+            except Exception as e:
+                return jsonify({'code': 1, 'msg': f'缺少依赖 faster-whisper：{e}', 'data': None}), 500
+
+            device_req = (data.get('device') or 'auto').lower()
+            compute_type = (data.get('compute_type') or '').lower()
+            if device_req == 'cpu':
+                device = 'cpu'
+                compute_type = compute_type or 'int8'
+            elif device_req in ('cuda', 'gpu'):
+                device = 'cuda'
+                compute_type = compute_type or 'float16'
+            else:
+                device = 'cuda'
+                compute_type = compute_type or 'float16'
+
+            try:
+                try:
+                    model = WhisperModel(model_size, device=device, compute_type=compute_type)
+                except Exception:
+                    model = WhisperModel(model_size, device='cpu', compute_type='int8')
+
+                segments, info = model.transcribe(
+                    str(audio_path),
+                    language=language,
+                    beam_size=int(data.get('beam_size') or 5),
+                    vad_filter=bool(data.get('vad_filter') if data.get('vad_filter') is not None else True)
+                )
+                subtitles = [_format_segment(seg) for seg in segments]
+            finally:
+                if cleanup_tmp:
+                    try:
+                        Path(audio_path).unlink(missing_ok=True)
+                    except Exception:
+                        pass
+
+            return jsonify({
+                'code': 0,
+                'msg': '字幕生成成功',
+                'data': {
+                    'subtitles': subtitles,
+                    'language': language
+                }
+            })
+        except Exception as e:
+            logger.error(f'字幕生成失败: {e}', exc_info=True)
+            return jsonify({'code': 1, 'msg': f'字幕生成失败: {e}', 'data': None}), 500
+
+    return generate_subtitle
+
+
+def _run_generate_subtitle_task(task_id, data, db_manager):
+    """后台执行字幕识别任务，持续写入进度和已识别片段。"""
+    project_id = data.get('project_id')
+    cleanup_tmp = False
+    audio_path = None
+    subtitles = []
+    try:
+        _update_project_status(db_manager, project_id, 'processing')
+        _json_safe_task_update(db_manager, task_id, 'running', 3, {
+            'message': '正在准备项目素材',
+            'subtitles': subtitles
+        })
+
+        audio_path, cleanup_tmp = _extract_audio_from_project(data, db_manager)
+        _json_safe_task_update(db_manager, task_id, 'running', 15, {
+            'message': '音频准备完成，正在加载识别模型',
+            'subtitles': subtitles
+        })
+
+        model = _load_whisper_model(data)
+        language = (data.get('language') or 'zh').split('-')[0]
+        _json_safe_task_update(db_manager, task_id, 'running', 25, {
+            'message': '模型加载完成，正在识别语音',
+            'subtitles': subtitles,
+            'language': language
+        })
+
+        segments_iter, info = model.transcribe(
+            str(audio_path),
+            language=language,
+            beam_size=int(data.get('beam_size') or 5),
+            vad_filter=bool(data.get('vad_filter') if data.get('vad_filter') is not None else True)
+        )
+        duration = max(1.0, float(getattr(info, 'duration', 0.0) or 0.0))
+
+        for seg in segments_iter:
+            item = _format_segment(seg)
+            if item.get('text'):
+                subtitles.append(item)
+            progress = min(95, 25 + int((float(item.get('end') or 0.0) / duration) * 70))
+            _json_safe_task_update(db_manager, task_id, 'running', progress, {
+                'message': f'已识别 {len(subtitles)} 条字幕',
+                'subtitles': subtitles,
+                'language': language
+            })
+
+        output_data = {
+            'message': f'字幕生成完成，共 {len(subtitles)} 条',
+            'subtitles': subtitles,
+            'language': language
+        }
+        _json_safe_task_update(db_manager, task_id, 'completed', 100, output_data)
+        _update_project_status(db_manager, project_id, 'completed')
+    except Exception as e:
+        logger.error(f'字幕识别任务失败: {task_id}, {e}', exc_info=True)
+        _json_safe_task_update(db_manager, task_id, 'failed', None, {
+            'message': f'字幕生成失败: {e}',
+            'subtitles': subtitles
+        }, str(e))
+        _update_project_status(db_manager, project_id, 'failed')
+    finally:
+        if cleanup_tmp and audio_path:
+            try:
+                Path(audio_path).unlink(missing_ok=True)
+            except Exception:
+                pass
+
+
+def create_generate_subtitle_task_handler(db_manager):
+    """创建异步字幕识别任务处理函数。"""
+    def generate_subtitle_task():
+        try:
+            data = request.get_json() or {}
+            project_id = data.get('project_id')
+            if not project_id:
+                return jsonify({'code': 1, 'msg': '缺少项目ID', 'data': None}), 400
+            if db_manager is None:
+                return jsonify({'code': 1, 'msg': '字幕生成服务未绑定数据库管理器', 'data': None}), 500
+
+            task_id = str(uuid.uuid4())
+            input_data = dict(data)
+            input_data['task_name'] = '自动字幕生成'
+            db_manager.create_task(task_id, 'subtitle_generate', project_id, input_data=input_data)
+            _update_project_status(db_manager, project_id, 'processing')
+            threading.Thread(
+                target=_run_generate_subtitle_task,
+                args=(task_id, data, db_manager),
+                daemon=True
+            ).start()
+
+            return jsonify({
+                'code': 0,
+                'msg': '字幕生成任务已创建',
+                'data': {'task_id': task_id, 'project_id': project_id}
+            })
+        except Exception as e:
+            logger.error(f'创建字幕生成任务失败: {e}', exc_info=True)
+            return jsonify({'code': 1, 'msg': f'创建字幕生成任务失败: {e}', 'data': None}), 500
+
+    return generate_subtitle_task
 
 
 @subtitle_bp.route('/api/subtitle/<subtitle_id>', methods=['PUT'])
@@ -179,9 +906,211 @@ def get_subtitle_styles():
     })
 
 
-def register_subtitle_routes(app):
+def create_render_subtitle_video_handler(db_manager):
+    """创建带字幕视频导出处理函数。"""
+    def render_subtitle_video():
+        """将字幕按统一样式烧录到视频并导出 MP4。"""
+        try:
+            data = request.get_json() or {}
+            subtitles = _sanitize_subtitles(data.get('subtitles') or [])
+            if not subtitles:
+                return jsonify({'code': 1, 'msg': '请先生成或填写至少一条字幕', 'data': None}), 400
+
+            video_path = _resolve_video_path(data, db_manager)
+            if not video_path:
+                return jsonify({'code': 1, 'msg': '未找到可用的视频文件', 'data': None}), 400
+
+            ffmpeg_path = _get_ffmpeg_executable()
+            if not ffmpeg_path:
+                return jsonify({'code': 1, 'msg': '系统未检测到 FFmpeg，无法导出带字幕视频', 'data': None}), 500
+
+            work_dir = BASE_DIR / 'temp' / 'subtitles'
+            output_dir = BASE_DIR / 'output' / 'subtitles'
+            work_dir.mkdir(parents=True, exist_ok=True)
+            output_dir.mkdir(parents=True, exist_ok=True)
+
+            export_id = uuid.uuid4().hex
+            ass_path = work_dir / f'{export_id}.ass'
+            output_path = output_dir / f'{export_id}.mp4'
+
+            style = data.get('style') if isinstance(data.get('style'), dict) else {}
+            ass_path.write_text(_build_ass_content(subtitles, style), encoding='utf-8')
+
+            if _ffmpeg_has_filter(ffmpeg_path, 'subtitles'):
+                subtitles_filter = f"subtitles=filename='{_escape_filter_path(ass_path)}'"
+                if FONTS_DIR and Path(FONTS_DIR).exists():
+                    subtitles_filter += f":fontsdir='{_escape_filter_path(FONTS_DIR)}'"
+
+                cmd = [
+                    ffmpeg_path,
+                    '-y',
+                    '-i', str(video_path),
+                    '-vf', subtitles_filter,
+                    '-c:v', 'libx264',
+                    '-preset', 'veryfast',
+                    '-crf', '20',
+                    '-c:a', 'copy',
+                    '-movflags', '+faststart',
+                    str(output_path)
+                ]
+                proc = subprocess.run(cmd, capture_output=True, text=True)
+                if proc.returncode != 0:
+                    logger.warning(f'FFmpeg subtitles 滤镜导出失败，改用逐帧渲染: {proc.stderr[-500:]}')
+                    _render_video_with_pillow(video_path, output_path, subtitles, style, ffmpeg_path)
+            else:
+                logger.info('当前 FFmpeg 不支持 subtitles 滤镜，使用 OpenCV + Pillow 后备渲染')
+                _render_video_with_pillow(video_path, output_path, subtitles, style, ffmpeg_path)
+
+            return jsonify({
+                'code': 0,
+                'msg': '带字幕视频导出成功',
+                'data': {
+                    'output_path': f'output/subtitles/{output_path.name}',
+                    'output_url': f'/output/subtitles/{output_path.name}',
+                    'ass_path': f'temp/subtitles/{ass_path.name}'
+                }
+            })
+        except Exception as e:
+            logger.error(f'导出带字幕视频异常: {e}', exc_info=True)
+            return jsonify({'code': 1, 'msg': f'导出带字幕视频失败: {e}', 'data': None}), 500
+
+    return render_subtitle_video
+
+
+def _run_render_subtitle_video_task(task_id, data, db_manager):
+    """后台执行带字幕视频导出任务。"""
+    project_id = data.get('project_id')
+    try:
+        _update_project_status(db_manager, project_id, 'processing')
+        _json_safe_task_update(db_manager, task_id, 'running', 5, {'message': '正在校验字幕和视频'})
+
+        subtitles = _sanitize_subtitles(data.get('subtitles') or [])
+        if not subtitles:
+            raise ValueError('请先生成或填写至少一条字幕')
+
+        video_path = _resolve_video_path(data, db_manager)
+        if not video_path:
+            raise FileNotFoundError('未找到可用的视频文件')
+
+        ffmpeg_path = _get_ffmpeg_executable()
+        if not ffmpeg_path:
+            raise RuntimeError('系统未检测到 FFmpeg，无法导出带字幕视频')
+
+        work_dir = BASE_DIR / 'temp' / 'subtitles'
+        output_dir = BASE_DIR / 'output' / 'subtitles'
+        work_dir.mkdir(parents=True, exist_ok=True)
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        export_id = uuid.uuid4().hex
+        ass_path = work_dir / f'{export_id}.ass'
+        output_path = output_dir / f'{export_id}.mp4'
+        style = data.get('style') if isinstance(data.get('style'), dict) else {}
+        ass_path.write_text(_build_ass_content(subtitles, style), encoding='utf-8')
+
+        _json_safe_task_update(db_manager, task_id, 'running', 20, {
+            'message': '字幕样式文件已生成，正在渲染视频',
+            'subtitle_count': len(subtitles)
+        })
+
+        if _ffmpeg_has_filter(ffmpeg_path, 'subtitles'):
+            subtitles_filter = f"subtitles=filename='{_escape_filter_path(ass_path)}'"
+            if FONTS_DIR and Path(FONTS_DIR).exists():
+                subtitles_filter += f":fontsdir='{_escape_filter_path(FONTS_DIR)}'"
+            cmd = [
+                ffmpeg_path, '-y', '-i', str(video_path),
+                '-vf', subtitles_filter,
+                '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20',
+                '-c:a', 'copy', '-movflags', '+faststart',
+                str(output_path)
+            ]
+            proc = subprocess.run(cmd, capture_output=True, text=True)
+            if proc.returncode != 0:
+                logger.warning(f'FFmpeg subtitles 滤镜导出失败，改用逐帧渲染: {proc.stderr[-500:]}')
+                _render_video_with_pillow(video_path, output_path, subtitles, style, ffmpeg_path)
+        else:
+            _render_video_with_pillow(video_path, output_path, subtitles, style, ffmpeg_path)
+
+        output_data = {
+            'message': '带字幕视频导出完成',
+            'output_path': f'output/subtitles/{output_path.name}',
+            'output_url': f'/output/subtitles/{output_path.name}',
+            'ass_path': f'temp/subtitles/{ass_path.name}',
+            'subtitle_count': len(subtitles)
+        }
+        _json_safe_task_update(db_manager, task_id, 'completed', 100, output_data)
+        _update_project_status(db_manager, project_id, 'completed')
+    except Exception as e:
+        logger.error(f'带字幕视频导出任务失败: {task_id}, {e}', exc_info=True)
+        _json_safe_task_update(db_manager, task_id, 'failed', None, {
+            'message': f'导出带字幕视频失败: {e}'
+        }, str(e))
+        _update_project_status(db_manager, project_id, 'failed')
+
+
+def create_render_subtitle_video_task_handler(db_manager):
+    """创建异步带字幕视频导出处理函数。"""
+    def render_subtitle_video_task():
+        try:
+            data = request.get_json() or {}
+            project_id = data.get('project_id')
+            if db_manager is None:
+                return jsonify({'code': 1, 'msg': '字幕导出服务未绑定数据库管理器', 'data': None}), 500
+
+            task_id = str(uuid.uuid4())
+            input_data = {
+                'project_id': project_id,
+                'video_path': data.get('video_path'),
+                'style': data.get('style') or {},
+                'subtitle_count': len(data.get('subtitles') or []),
+                'task_name': '导出带字幕视频'
+            }
+            db_manager.create_task(task_id, 'subtitle_render_video', project_id, input_data=input_data)
+            _update_project_status(db_manager, project_id, 'processing')
+            threading.Thread(
+                target=_run_render_subtitle_video_task,
+                args=(task_id, data, db_manager),
+                daemon=True
+            ).start()
+
+            return jsonify({
+                'code': 0,
+                'msg': '带字幕视频导出任务已创建',
+                'data': {'task_id': task_id, 'project_id': project_id}
+            })
+        except Exception as e:
+            logger.error(f'创建带字幕视频导出任务失败: {e}', exc_info=True)
+            return jsonify({'code': 1, 'msg': f'创建导出任务失败: {e}', 'data': None}), 500
+
+    return render_subtitle_video_task
+
+
+def register_subtitle_routes(app, db_manager=None):
     """
     注册字幕API路由
     """
+    app.add_url_rule(
+        '/api/subtitle/generate',
+        'subtitle_generate',
+        create_generate_subtitle_handler(db_manager),
+        methods=['POST']
+    )
+    app.add_url_rule(
+        '/api/subtitle/generate-task',
+        'subtitle_generate_task',
+        create_generate_subtitle_task_handler(db_manager),
+        methods=['POST']
+    )
+    app.add_url_rule(
+        '/api/subtitle/render-video',
+        'subtitle_render_video',
+        create_render_subtitle_video_handler(db_manager),
+        methods=['POST']
+    )
+    app.add_url_rule(
+        '/api/subtitle/render-video-task',
+        'subtitle_render_video_task',
+        create_render_subtitle_video_task_handler(db_manager),
+        methods=['POST']
+    )
     app.register_blueprint(subtitle_bp)
     logger.info("字幕API路由注册成功")

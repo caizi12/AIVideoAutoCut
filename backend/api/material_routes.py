@@ -168,7 +168,8 @@ def register_material_routes(app, db_manager):
                 base_uploads / 'audios',
                 base_uploads / 'images',
                 base_uploads / 'commentary_videos',
-                base_uploads / 'remix_videos'
+                base_uploads / 'remix_videos',
+                base_uploads / 'subtitle_videos'
             ]
 
             # 扩展名到类别的映射，便于根据 ?type=video/audio/image/subtitle 过滤

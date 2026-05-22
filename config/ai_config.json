@@ -19,7 +19,7 @@
     "wenxin_api_key": "",
     "wenxin_secret_key": "",
     "claude_api_key": "",
-    "default_model": "deepseek"
+    "default_model": "openai"
   },
   "vision": {
     "gpt4v_api_key": "",

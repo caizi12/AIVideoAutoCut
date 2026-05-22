@@ -909,6 +909,10 @@
                     statusClass = 'status-pending';
                     statusText = '等待中';
                     break;
+                case 'draft':
+                    statusClass = 'status-pending';
+                    statusText = '草稿';
+                    break;
                 case 'processing':
                 case 'running':
                     statusClass = 'status-processing';
@@ -937,6 +941,9 @@
                     break;
                 case 'voiceover':
                     typeText = 'AI配音';
+                    break;
+                case 'subtitle':
+                    typeText = '自动字幕';
                     break;
                 case 'video_edit':
                     typeText = '视频编辑';
@@ -1316,13 +1323,14 @@
         // 从后端API获取完整项目数据
         apiRequest(`/api/projects/${projectId}`, 'GET', {}, function(response) {
             hideLoading(loading);
-            
-            if (response.data) {
+
+            var projectData = response && response.data ? response.data : response;
+            if (projectData && projectData.id) {
                 // 将完整项目数据保存到sessionStorage供编辑器使用
                 sessionStorage.setItem('current_project_id', projectId);
-                sessionStorage.setItem('current_project_data', JSON.stringify(response.data));
+                sessionStorage.setItem('current_project_data', JSON.stringify(projectData));
                 
-                console.log('✅ 项目数据已加载:', response.data);
+                console.log('✅ 项目数据已加载:', projectData);
                 layer.msg('✅ 项目加载成功', {icon: 1, time: 1000});
                 
                 // 延迟跳转，确保数据已保存
@@ -1349,12 +1357,16 @@
         // 从后端API获取完整项目数据
         apiRequest(`/api/projects/${projectId}`, 'GET', {}, function(response) {
             hideLoading(loading);
-            
-            if (response.data) {
-                var project = response.data;
+
+            var project = response && response.data ? response.data : response;
+            if (project && project.id) {
                 
                 // 格式化项目类型
                 var typeText = {
+                    'commentary': '原创解说',
+                    'remix': '混剪模式',
+                    'voiceover': 'AI配音',
+                    'subtitle': '自动字幕',
                     'video_edit': '视频编辑',
                     'ai_cut': 'AI剪辑',
                     'voice_over': '配音解说',
@@ -1375,6 +1387,33 @@
                     'completed': '#67C23A',
                     'archived': '#E6A23C'
                 }[project.status] || '#909399';
+
+                var esc = function(value) {
+                    return String(value == null ? '' : value)
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;')
+                        .replace(/'/g, '&#39;');
+                };
+                var materials = Array.isArray(project.materials) ? project.materials : [];
+                var tasks = Array.isArray(project.tasks) ? project.tasks : [];
+                var materialHtml = materials.length ? materials.slice(0, 8).map(function(m) {
+                    return '<div style="display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid #eef2f7;">' +
+                        '<span style="color:#334155;">' + esc(m.name || m.path || '未命名素材') + '</span>' +
+                        '<span style="color:#64748b;">' + esc(m.type || '-') + '</span>' +
+                    '</div>';
+                }).join('') : '<div style="color:#94a3b8;">暂无素材记录</div>';
+                var taskHtml = tasks.length ? tasks.slice(0, 8).map(function(t) {
+                    var out = t.output_data || {};
+                    var msg = out.message || t.error_message || '';
+                    return '<div style="display:grid;grid-template-columns: 150px 90px 70px minmax(0,1fr);gap:10px;padding:8px 0;border-bottom:1px solid #eef2f7;align-items:center;">' +
+                        '<span style="color:#334155;">' + esc(t.type || '-') + '</span>' +
+                        '<span style="color:#64748b;">' + esc(t.status || '-') + '</span>' +
+                        '<span style="color:#2563eb;">' + Math.round(Number(t.progress || 0)) + '%</span>' +
+                        '<span style="color:#64748b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(msg) + '</span>' +
+                    '</div>';
+                }).join('') : '<div style="color:#94a3b8;">暂无任务记录</div>';
                 
                 // 显示详细预览对话框
                 layer.open({
@@ -1440,6 +1479,16 @@
                                     </div>
                                 </div>
                             ` : ''}
+
+                            <div style="background: white; padding: 25px; border-radius: 15px; margin-bottom: 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.08);">
+                                <h4 style="margin: 0 0 15px 0; color: #333; font-size: 16px;">📦 素材记录（${materials.length}）</h4>
+                                ${materialHtml}
+                            </div>
+
+                            <div style="background: white; padding: 25px; border-radius: 15px; margin-bottom: 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.08);">
+                                <h4 style="margin: 0 0 15px 0; color: #333; font-size: 16px;">🧾 任务记录（${tasks.length}）</h4>
+                                ${taskHtml}
+                            </div>
                             
                             <!-- 操作按钮 -->
                             <div style="text-align: center; margin-top: 25px;">

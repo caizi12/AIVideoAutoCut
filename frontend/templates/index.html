@@ -5186,23 +5186,38 @@ console.log('✅ 页面基础脚本加载完成');
                     // 添加字幕到文字轨道
                     const textTrack = document.getElementById('text-track-1');
                     if (textTrack) {
-                        let leftPos = 100;
+                        const escapeHtml = (value) => String(value || '')
+                            .replace(/&/g, '&amp;')
+                            .replace(/</g, '&lt;')
+                            .replace(/>/g, '&gt;')
+                            .replace(/"/g, '&quot;')
+                            .replace(/'/g, '&#39;');
+                        const pixelsPerSecond = 10;
 
-                        subtitles.forEach((text, index) => {
+                        subtitles.forEach((subtitle, index) => {
+                            const text = typeof subtitle === 'string' ? subtitle : (subtitle.text || '');
+                            const start = typeof subtitle === 'string' ? index * 3 : (parseFloat(subtitle.start) || 0);
+                            const end = typeof subtitle === 'string' ? start + 3 : (parseFloat(subtitle.end) || start + 3);
+                            const duration = Math.max(0.5, end - start);
+                            const leftPos = Math.max(0, Math.round(start * pixelsPerSecond));
+                            const width = Math.max(80, Math.round(duration * pixelsPerSecond));
                             const textId = 'subtitle-' + Date.now() + '-' + index;
                             const textElement = document.createElement('div');
                             textElement.className = 'absolute top-1 h-16 bg-gradient-to-r from-accent/30 to-primary/30 border border-accent/50 rounded-lg cursor-pointer hover:bg-gradient-to-r from-accent/40 to-primary/40 transition-all duration-200';
-                            textElement.style.width = '200px';
+                            textElement.style.width = width + 'px';
                             textElement.style.left = leftPos + 'px';
                             textElement.setAttribute('data-type', 'text');
+                            textElement.setAttribute('data-subtitle', 'true');
                             textElement.setAttribute('data-id', textId);
                             textElement.setAttribute('data-text', text);
+                            textElement.setAttribute('data-start-time', start.toFixed(3));
+                            textElement.setAttribute('data-duration', duration.toFixed(3));
 
                             textElement.innerHTML = `
                                 <div class="flex items-center justify-between h-full px-2">
                                     <div class="flex items-center space-x-2">
                                         <i class="fa fa-font text-white text-sm"></i>
-                                        <span class="text-xs text-white font-medium truncate max-w-[120px]">${text}</span>
+                                        <span class="text-xs text-white font-medium truncate max-w-[120px]">${escapeHtml(text)}</span>
                                     </div>
                                     <span class="text-xs text-white bg-black/30 px-1 rounded">字幕</span>
                                 </div>
@@ -5213,7 +5228,6 @@ console.log('✅ 页面基础脚本加载完成');
 
                             makeDraggable(textElement, textTrack);
                             textTrack.appendChild(textElement);
-                            leftPos += 250;
                         });
 
                         const placeholder = textTrack.querySelector('.text-xs.text-text-secondary');

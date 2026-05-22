@@ -35,6 +35,7 @@ def register_upload_routes(app):
     # 为不同业务场景预留的子目录（解说/混剪等）
     os.makedirs(os.path.join(UPLOAD_DIR, 'commentary_videos'), exist_ok=True)
     os.makedirs(os.path.join(UPLOAD_DIR, 'remix_videos'), exist_ok=True)
+    os.makedirs(os.path.join(UPLOAD_DIR, 'subtitle_videos'), exist_ok=True)
     
     @app.route('/api/upload/video', methods=['POST'])
     def upload_video():
@@ -63,6 +64,8 @@ def register_upload_routes(app):
                 subdir = 'commentary_videos'
             elif scene == 'remix':
                 subdir = 'remix_videos'
+            elif scene == 'subtitle':
+                subdir = 'subtitle_videos'
             else:
                 subdir = 'videos'
 

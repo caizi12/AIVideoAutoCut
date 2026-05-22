@@ -28,7 +28,7 @@ from datetime import datetime
 from typing import Dict, List, Optional
 
 # Flask相关导入
-from flask import Flask, render_template, request, jsonify, send_from_directory
+from flask import Flask, render_template, request, jsonify, send_from_directory, redirect
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
@@ -958,8 +958,8 @@ if BACKEND_AVAILABLE:
         # 注册字幕API路由
         try:
             from backend.api.subtitle_api import register_subtitle_routes
-            register_subtitle_routes(app)
-            logger.info('✅ 字幕API路由注册成功 (5个)')
+            register_subtitle_routes(app, backend_db_manager)
+            logger.info('✅ 字幕API路由注册成功 (8个)')
         except Exception as e:
             logger.warning(f'⚠️ 字幕API路由注册失败: {e}')
 
@@ -970,6 +970,14 @@ if BACKEND_AVAILABLE:
             logger.info('✅ 清理API路由注册成功 (1个)')
         except Exception as e:
             logger.warning(f'⚠️ 清理API路由注册失败: {e}')
+
+        # 注册自动剪辑API路由
+        try:
+            from backend.api.auto_clip_routes import register_auto_clip_routes
+            register_auto_clip_routes(app)
+            logger.info('✅ 自动剪辑API路由注册成功 (4个)')
+        except Exception as e:
+            logger.warning(f'⚠️ 自动剪辑API路由注册失败: {e}')
 
         # 初始化全局状态管理器
         try:
@@ -1054,6 +1062,12 @@ def projects_page():
     """项目管理页面"""
     return render_template('projects.html')
 
+@app.route('/admin')
+@app.route('/dashboard')
+def admin_page():
+    """管理后台入口"""
+    return redirect('/projects')
+
 @app.route('/materials')
 def materials_page():
     """素材库页面"""
@@ -1068,6 +1082,11 @@ def voice_config_page():
 def ai_features_page():
     """AI功能页面"""
     return render_template('ai_features.html')
+
+@app.route('/subtitle_tool')
+def subtitle_tool_page():
+    """自动字幕工具页面"""
+    return render_template('subtitle_tool.html')
 
 @app.route('/settings')
 @app.route('/api_settings')

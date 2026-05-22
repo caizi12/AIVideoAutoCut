@@ -94,6 +94,10 @@
             background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
         }
 
+        .feature-card:nth-child(4)::before {
+            background: linear-gradient(135deg, #22c55e 0%, #14b8a6 100%);
+        }
+
         .feature-card:hover {
             transform: translateY(-10px);
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
@@ -164,6 +168,10 @@
             background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
         }
 
+        .feature-card:nth-child(4) .btn {
+            background: linear-gradient(135deg, #22c55e 0%, #14b8a6 100%);
+        }
+
         .quick-links {
             display: flex;
             gap: 20px;
@@ -231,6 +239,10 @@
             animation-delay: 0.3s;
         }
 
+        .feature-card:nth-child(4) {
+            animation-delay: 0.4s;
+        }
+
         .nav-hint {
             position: fixed;
             top: 20px;
@@ -257,7 +269,7 @@
             justify-content: center;
             flex-wrap: wrap;
         }
-        .floating-actions button { white-space: nowrap; }
+        .floating-actions a { white-space: nowrap; text-decoration: none; }
         @media (max-height: 700px) {
             .floating-actions { margin-top: -16px; }
         }
@@ -296,20 +308,23 @@
 
     <!-- 快捷导航 -->
     <div class="floating-actions left">
-        <button onclick="window.location.href='/editor'" style="padding: 10px 20px; background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); border-radius: 20px; cursor: pointer; backdrop-filter: blur(10px); font-size: 14px;">
+        <a href="/editor" style="padding: 10px 20px; background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); border-radius: 20px; cursor: pointer; backdrop-filter: blur(10px); font-size: 14px;">
             🎬 视频编辑器
-        </button>
-        <button onclick="window.location.href='/projects'" style="padding: 10px 20px; background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); border-radius: 20px; cursor: pointer; backdrop-filter: blur(10px); font-size: 14px;">
+        </a>
+        <a href="/projects" style="padding: 10px 20px; background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); border-radius: 20px; cursor: pointer; backdrop-filter: blur(10px); font-size: 14px;">
             📁 项目管理
-        </button>
-        <button onclick="window.location.href='/settings'" style="padding: 10px 20px; background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); border-radius: 20px; cursor: pointer; backdrop-filter: blur(10px); font-size: 14px;">
+        </a>
+        <a href="/settings" style="padding: 10px 20px; background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); border-radius: 20px; cursor: pointer; backdrop-filter: blur(10px); font-size: 14px;">
             ⚙️ 系统设置
-        </button>
+        </a>
+        <a href="/subtitle_tool" style="padding: 10px 20px; background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); border-radius: 20px; cursor: pointer; backdrop-filter: blur(10px); font-size: 14px;">
+            📝 自动字幕
+        </a>
     </div>
 
     <div class="features">
         <!-- 原创解说剪辑 -->
-        <div class="feature-card" onclick="window.location.href='/commentary'">
+        <a class="feature-card" href="/commentary" style="text-decoration: none;">
             <div class="feature-icon">🎙️</div>
             <div class="feature-title">原创解说剪辑</div>
             <div class="feature-desc">AI自动剪辑+智能配音配乐，一键生成专业解说视频</div>
@@ -319,11 +334,11 @@
                 <li>文稿自动生成</li>
                 <li>5种音色可选</li>
             </ul>
-            <button class="btn">开始创作</button>
-        </div>
+            <span class="btn">开始创作</span>
+        </a>
 
         <!-- 混剪模式 -->
-        <div class="feature-card" onclick="window.location.href='/remix'">
+        <a class="feature-card" href="/remix" style="text-decoration: none;">
             <div class="feature-icon">✂️</div>
             <div class="feature-title">混剪模式</div>
             <div class="feature-desc">批量处理多个视频，智能识别精彩片段，多种风格混剪</div>
@@ -333,11 +348,11 @@
                 <li>3种风格可选</li>
                 <li>自动添加转场</li>
             </ul>
-            <button class="btn">开始混剪</button>
-        </div>
+            <span class="btn">开始混剪</span>
+        </a>
 
         <!-- AI配音 -->
-        <div class="feature-card" onclick="window.location.href='/voiceover'">
+        <a class="feature-card" href="/voiceover" style="text-decoration: none;">
             <div class="feature-icon">🔊</div>
             <div class="feature-title">AI配音</div>
             <div class="feature-desc">多种AI音色，文字转语音生成，语速语调自由调整</div>
@@ -347,8 +362,22 @@
                 <li>参数精细调节</li>
                 <li>实时预览试听</li>
             </ul>
-            <button class="btn">开始配音</button>
-        </div>
+            <span class="btn">开始配音</span>
+        </a>
+
+        <!-- 自动字幕 -->
+        <a class="feature-card" href="/subtitle_tool" style="text-decoration: none;">
+            <div class="feature-icon">📝</div>
+            <div class="feature-title">自动字幕</div>
+            <div class="feature-desc">上传视频后自动识别语音，生成可预览、可批量设置样式的字幕</div>
+            <ul class="feature-list">
+                <li>视频语音识别</li>
+                <li>字幕时间轴预览</li>
+                <li>批量设置位置字体</li>
+                <li>一键导出带字幕视频</li>
+            </ul>
+            <span class="btn">生成字幕</span>
+        </a>
     </div>
 
     <div class="quick-links">
@@ -356,6 +385,7 @@
         <a href="/materials" class="quick-link">🎬 素材库</a>
         <a href="/settings" class="quick-link">⚙️ 系统设置</a>
         <a href="/mode_select" class="quick-link">🎯 模式选择</a>
+        <a href="/subtitle_tool" class="quick-link">📝 自动字幕</a>
     </div>
 
     <script>
@@ -374,10 +404,11 @@
             if (e.key === '1') window.location.href = '/commentary';
             if (e.key === '2') window.location.href = '/remix';
             if (e.key === '3') window.location.href = '/voiceover';
+            if (e.key === '4') window.location.href = '/subtitle_tool';
         });
 
         console.log('🎉 JJYB_AI智剪 v2.0 已加载');
-        console.log('快捷键: 按 1/2/3 快速进入对应功能');
+        console.log('快捷键: 按 1/2/3/4 快速进入对应功能');
     </script>
 </body>
 </html>

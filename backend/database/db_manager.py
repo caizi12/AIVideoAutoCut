@@ -245,9 +245,32 @@ class DatabaseManager:
             
             if row:
                 project = dict(row)
+                if project.get('config'):
+                    try:
+                        project['config'] = json.loads(project['config'])
+                    except Exception:
+                        project['config'] = {}
+
                 # 获取项目的素材
-                cursor.execute('SELECT * FROM materials WHERE project_id = ?', (project_id,))
+                cursor.execute('SELECT * FROM materials WHERE project_id = ? ORDER BY created_at DESC', (project_id,))
                 project['materials'] = [dict(r) for r in cursor.fetchall()]
+                for material in project['materials']:
+                    if material.get('metadata'):
+                        try:
+                            material['metadata'] = json.loads(material['metadata'])
+                        except Exception:
+                            material['metadata'] = {}
+
+                # 获取项目的任务
+                cursor.execute('SELECT * FROM tasks WHERE project_id = ? ORDER BY created_at DESC', (project_id,))
+                project['tasks'] = [dict(r) for r in cursor.fetchall()]
+                for task in project['tasks']:
+                    for key in ('input_data', 'output_data'):
+                        if task.get(key):
+                            try:
+                                task[key] = json.loads(task[key])
+                            except Exception:
+                                task[key] = {}
                 return project
             return None
         finally:
@@ -498,8 +521,16 @@ class DatabaseManager:
             
             query += ' ORDER BY created_at DESC'
             cursor.execute(query, params)
-            
-            return [dict(row) for row in cursor.fetchall()]
+
+            tasks = [dict(row) for row in cursor.fetchall()]
+            for task in tasks:
+                for key in ('input_data', 'output_data'):
+                    if task.get(key):
+                        try:
+                            task[key] = json.loads(task[key])
+                        except Exception:
+                            task[key] = {}
+            return tasks
         finally:
             conn.close()
     
@@ -519,7 +550,16 @@ class DatabaseManager:
         try:
             cursor.execute('SELECT * FROM tasks WHERE id = ?', (task_id,))
             row = cursor.fetchone()
-            return dict(row) if row else None
+            if not row:
+                return None
+            task = dict(row)
+            for key in ('input_data', 'output_data'):
+                if task.get(key):
+                    try:
+                        task[key] = json.loads(task[key])
+                    except Exception:
+                        task[key] = {}
+            return task
         finally:
             conn.close()
     

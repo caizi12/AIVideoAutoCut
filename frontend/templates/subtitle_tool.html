@@ -1,0 +1,1157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>自动字幕 - JJYB_AI智剪</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
+            color: #172033;
+            background: #f5f7fb;
+        }
+
+        .topbar {
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            background: #ffffff;
+            border-bottom: 1px solid #e5e9f2;
+            position: sticky;
+            top: 0;
+            z-index: 20;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 800;
+            font-size: 18px;
+        }
+
+        .brand-mark {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            display: grid;
+            place-items: center;
+            color: #ffffff;
+            background: #2563eb;
+            font-size: 16px;
+        }
+
+        .back-link {
+            color: #3b4a66;
+            text-decoration: none;
+            font-size: 14px;
+            padding: 9px 14px;
+            border: 1px solid #d7ddea;
+            border-radius: 8px;
+            background: #ffffff;
+        }
+
+        .workspace {
+            width: min(1440px, calc(100vw - 40px));
+            margin: 24px auto 40px;
+            display: grid;
+            grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+            gap: 18px;
+        }
+
+        .panel {
+            background: #ffffff;
+            border: 1px solid #e3e8f3;
+            border-radius: 8px;
+            box-shadow: 0 10px 28px rgba(31, 45, 75, 0.06);
+        }
+
+        .panel-header {
+            padding: 18px 20px 12px;
+            border-bottom: 1px solid #edf1f7;
+        }
+
+        .panel-title {
+            margin: 0;
+            font-size: 18px;
+            line-height: 1.3;
+        }
+
+        .panel-subtitle {
+            margin: 6px 0 0;
+            color: #6b7890;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .panel-body {
+            padding: 18px 20px 20px;
+        }
+
+        .field {
+            margin-bottom: 16px;
+        }
+
+        .field label {
+            display: block;
+            margin-bottom: 7px;
+            font-size: 13px;
+            font-weight: 700;
+            color: #2f3a50;
+        }
+
+        .field input[type="file"],
+        .field select,
+        .field input[type="number"],
+        .field input[type="text"] {
+            width: 100%;
+            min-height: 42px;
+            border: 1px solid #d7ddea;
+            border-radius: 8px;
+            background: #ffffff;
+            padding: 9px 11px;
+            font-size: 14px;
+            color: #172033;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .color-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .color-input {
+            width: 100%;
+            height: 42px;
+            padding: 4px;
+            border: 1px solid #d7ddea;
+            border-radius: 8px;
+            background: #ffffff;
+        }
+
+        .check-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: #334155;
+            margin: 8px 0 16px;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            border: 0;
+            border-radius: 8px;
+            min-height: 42px;
+            padding: 0 16px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: #2563eb;
+            color: #ffffff;
+        }
+
+        .btn-secondary {
+            background: #0f766e;
+            color: #ffffff;
+        }
+
+        .btn-ghost {
+            background: #eef2f8;
+            color: #233047;
+        }
+
+        .btn:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+
+        .status {
+            margin-top: 16px;
+            padding: 12px;
+            border-radius: 8px;
+            background: #f1f5f9;
+            color: #475569;
+            font-size: 13px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        .status.error {
+            background: #fef2f2;
+            color: #991b1b;
+        }
+
+        .status.success {
+            background: #ecfdf5;
+            color: #065f46;
+        }
+
+        .progress-wrap {
+            margin-top: 12px;
+            display: grid;
+            gap: 8px;
+        }
+
+        .progress-track {
+            height: 10px;
+            border-radius: 999px;
+            background: #e2e8f0;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            width: 0%;
+            height: 100%;
+            background: #2563eb;
+            transition: width 0.25s ease;
+        }
+
+        .task-info {
+            color: #64748b;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .export-actions {
+            margin-top: 12px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .export-actions[hidden] {
+            display: none;
+        }
+
+        .preview-panel {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .video-stage {
+            margin: 18px 20px 0;
+            background: #0c1220;
+            border-radius: 8px;
+            min-height: 420px;
+            position: relative;
+            overflow: hidden;
+            display: grid;
+            place-items: center;
+        }
+
+        .video-stage video {
+            width: 100%;
+            height: 100%;
+            max-height: 620px;
+            object-fit: contain;
+            display: block;
+            background: #0c1220;
+        }
+
+        .empty-preview {
+            color: #cbd5e1;
+            font-size: 15px;
+            text-align: center;
+            padding: 30px;
+        }
+
+        .subtitle-overlay {
+            position: absolute;
+            left: 50%;
+            max-width: min(86%, 920px);
+            transform: translateX(-50%);
+            padding: 8px 18px;
+            border-radius: 7px;
+            line-height: 1.45;
+            text-align: center;
+            pointer-events: none;
+            word-break: break-word;
+            white-space: pre-wrap;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+        }
+
+        .subtitle-overlay.bottom {
+            bottom: 9%;
+        }
+
+        .subtitle-overlay.center {
+            top: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .subtitle-overlay.top {
+            top: 9%;
+        }
+
+        .result-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 18px 20px 10px;
+        }
+
+        .result-title {
+            margin: 0;
+            font-size: 16px;
+        }
+
+        .subtitle-list {
+            margin: 0 20px 20px;
+            border: 1px solid #e3e8f3;
+            border-radius: 8px;
+            overflow: hidden;
+            max-height: 360px;
+            overflow-y: auto;
+            background: #ffffff;
+        }
+
+        .subtitle-row {
+            display: grid;
+            grid-template-columns: 82px 82px minmax(0, 1fr);
+            gap: 10px;
+            align-items: center;
+            padding: 10px 12px;
+            border-bottom: 1px solid #edf1f7;
+        }
+
+        .subtitle-row:last-child {
+            border-bottom: 0;
+        }
+
+        .time-cell {
+            font-variant-numeric: tabular-nums;
+            color: #64748b;
+            font-size: 12px;
+        }
+
+        .subtitle-text {
+            width: 100%;
+            min-height: 36px;
+            border: 1px solid #d7ddea;
+            border-radius: 7px;
+            padding: 7px 9px;
+            font-size: 14px;
+            color: #172033;
+        }
+
+        .timeline {
+            margin: 0 20px 18px;
+            height: 42px;
+            border-radius: 8px;
+            background: #eef2f8;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .timeline-segment {
+            position: absolute;
+            top: 8px;
+            height: 26px;
+            border-radius: 6px;
+            background: #2563eb;
+            opacity: 0.78;
+        }
+
+        @media (max-width: 980px) {
+            .workspace {
+                grid-template-columns: 1fr;
+                width: min(100vw - 24px, 760px);
+            }
+
+            .video-stage {
+                min-height: 260px;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .topbar {
+                padding: 0 14px;
+            }
+
+            .grid-2,
+            .color-row {
+                grid-template-columns: 1fr;
+            }
+
+            .subtitle-row {
+                grid-template-columns: 70px 70px minmax(0, 1fr);
+                gap: 7px;
+                padding: 9px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="topbar">
+        <div class="brand">
+            <div class="brand-mark">字</div>
+            <span>自动字幕</span>
+        </div>
+        <a class="back-link" href="/">返回首页</a>
+    </header>
+
+    <main class="workspace">
+        <section class="panel">
+            <div class="panel-header">
+                <h1 class="panel-title">上传视频生成字幕</h1>
+                <p class="panel-subtitle">选择视频后会自动创建临时项目、登记素材，并调用本地 faster-whisper 生成时间轴字幕。</p>
+            </div>
+            <div class="panel-body">
+                <div class="field">
+                    <label for="videoFile">视频文件</label>
+                    <input id="videoFile" type="file" accept="video/*">
+                </div>
+
+                <div class="grid-2">
+                    <div class="field">
+                        <label for="language">识别语言</label>
+                        <select id="language">
+                            <option value="zh-CN">中文</option>
+                            <option value="en-US">英文</option>
+                            <option value="ja-JP">日文</option>
+                            <option value="ko-KR">韩文</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="modelSize">识别模型</label>
+                        <select id="modelSize">
+                            <option value="tiny">tiny（更快）</option>
+                            <option value="base">base（均衡）</option>
+                            <option value="small">small（更准）</option>
+                            <option value="medium">medium（较慢）</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="field">
+                        <label for="device">运行设备</label>
+                        <select id="device">
+                            <option value="auto">自动</option>
+                            <option value="cpu">CPU</option>
+                            <option value="cuda">CUDA</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="position">字幕位置</label>
+                        <select id="position">
+                            <option value="bottom">底部</option>
+                            <option value="center">中间</option>
+                            <option value="top">顶部</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="field">
+                        <label for="fontFamily">字体</label>
+                        <select id="fontFamily">
+                            <option value="Microsoft YaHei">微软雅黑</option>
+                            <option value="PingFang SC">苹方</option>
+                            <option value="Source Han Sans SC">思源黑体</option>
+                            <option value="SimHei">黑体</option>
+                            <option value="Arial">Arial</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="fontSize">字号</label>
+                        <input id="fontSize" type="number" min="14" max="72" value="28">
+                    </div>
+                </div>
+
+                <div class="color-row">
+                    <div class="field">
+                        <label for="fontColor">文字颜色</label>
+                        <input id="fontColor" class="color-input" type="color" value="#ffffff">
+                    </div>
+                    <div class="field">
+                        <label for="bgColor">背景颜色</label>
+                        <input id="bgColor" class="color-input" type="color" value="#000000">
+                    </div>
+                </div>
+
+                <label class="check-row">
+                    <input id="boldText" type="checkbox" checked>
+                    <span>字幕加粗</span>
+                </label>
+
+                <div class="btn-row">
+                    <button id="generateBtn" class="btn btn-primary" type="button">生成字幕</button>
+                    <button id="applyStyleBtn" class="btn btn-ghost" type="button">应用到全部字幕</button>
+                    <button id="downloadSrtBtn" class="btn btn-secondary" type="button" disabled>下载SRT</button>
+                    <button id="downloadAssBtn" class="btn btn-secondary" type="button" disabled>下载ASS</button>
+                    <button id="renderVideoBtn" class="btn btn-primary" type="button" disabled>导出带字幕视频</button>
+                </div>
+
+                <div id="status" class="status">等待选择视频。</div>
+                <div class="progress-wrap">
+                    <div class="progress-track">
+                        <div id="progressBar" class="progress-bar"></div>
+                    </div>
+                    <div id="taskInfo" class="task-info">暂无运行中的任务。</div>
+                </div>
+                <div id="exportActions" class="export-actions" hidden>
+                    <a id="openVideoLink" class="btn btn-ghost" href="#" target="_blank" rel="noopener">打开视频</a>
+                    <a id="downloadVideoLink" class="btn btn-secondary" href="#" download>下载视频</a>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel preview-panel">
+            <div class="video-stage" id="videoStage">
+                <div id="emptyPreview" class="empty-preview">视频预览区</div>
+                <video id="videoPreview" controls hidden></video>
+                <div id="subtitleOverlay" class="subtitle-overlay bottom" hidden></div>
+            </div>
+
+            <div class="result-header">
+                <h2 class="result-title">字幕结果</h2>
+                <span id="subtitleCount" class="panel-subtitle">0 条字幕</span>
+            </div>
+            <div id="timeline" class="timeline"></div>
+            <div id="subtitleList" class="subtitle-list"></div>
+        </section>
+    </main>
+
+    <script>
+        const state = {
+            projectId: '',
+            videoFile: null,
+            videoUrl: '',
+            serverVideoPath: '',
+            renderedVideoUrl: '',
+            currentTaskId: '',
+            renderTaskId: '',
+            subtitles: [],
+            style: {
+                position: 'bottom',
+                fontFamily: 'Microsoft YaHei',
+                fontFile: '',
+                fontSize: 28,
+                fontColor: '#ffffff',
+                bgColor: '#000000',
+                bold: true
+            }
+        };
+
+        const els = {
+            videoFile: document.getElementById('videoFile'),
+            language: document.getElementById('language'),
+            modelSize: document.getElementById('modelSize'),
+            device: document.getElementById('device'),
+            position: document.getElementById('position'),
+            fontFamily: document.getElementById('fontFamily'),
+            fontSize: document.getElementById('fontSize'),
+            fontColor: document.getElementById('fontColor'),
+            bgColor: document.getElementById('bgColor'),
+            boldText: document.getElementById('boldText'),
+            generateBtn: document.getElementById('generateBtn'),
+            applyStyleBtn: document.getElementById('applyStyleBtn'),
+            downloadSrtBtn: document.getElementById('downloadSrtBtn'),
+            downloadAssBtn: document.getElementById('downloadAssBtn'),
+            renderVideoBtn: document.getElementById('renderVideoBtn'),
+            status: document.getElementById('status'),
+            progressBar: document.getElementById('progressBar'),
+            taskInfo: document.getElementById('taskInfo'),
+            exportActions: document.getElementById('exportActions'),
+            openVideoLink: document.getElementById('openVideoLink'),
+            downloadVideoLink: document.getElementById('downloadVideoLink'),
+            emptyPreview: document.getElementById('emptyPreview'),
+            videoPreview: document.getElementById('videoPreview'),
+            subtitleOverlay: document.getElementById('subtitleOverlay'),
+            subtitleList: document.getElementById('subtitleList'),
+            subtitleCount: document.getElementById('subtitleCount'),
+            timeline: document.getElementById('timeline')
+        };
+
+        function setStatus(message, type = '') {
+            els.status.textContent = message;
+            els.status.className = type ? `status ${type}` : 'status';
+        }
+
+        function setProgress(progress, message = '') {
+            const value = Math.max(0, Math.min(100, Number(progress) || 0));
+            els.progressBar.style.width = `${value}%`;
+            els.taskInfo.textContent = message ? `${value}% · ${message}` : `${value}%`;
+        }
+
+        function hideExportActions() {
+            els.exportActions.hidden = true;
+            els.openVideoLink.href = '#';
+            els.downloadVideoLink.href = '#';
+        }
+
+        function showExportActions(videoUrl) {
+            if (!videoUrl) {
+                hideExportActions();
+                return;
+            }
+            els.openVideoLink.href = videoUrl;
+            els.downloadVideoLink.href = videoUrl;
+            els.exportActions.hidden = false;
+        }
+
+        function escapeHtml(value) {
+            return String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function readStyle() {
+            const selectedFont = els.fontFamily.selectedOptions && els.fontFamily.selectedOptions[0];
+            state.style = {
+                position: els.position.value,
+                fontFamily: (selectedFont && (selectedFont.dataset.family || selectedFont.textContent.trim())) || els.fontFamily.value,
+                fontFile: (selectedFont && selectedFont.dataset.fontFile) || '',
+                fontSize: Math.max(14, Math.min(72, Number(els.fontSize.value) || 28)),
+                fontColor: els.fontColor.value,
+                bgColor: els.bgColor.value,
+                bold: els.boldText.checked
+            };
+            applyOverlayStyle();
+        }
+
+        function applyOverlayStyle() {
+            const s = state.style;
+            els.subtitleOverlay.className = `subtitle-overlay ${s.position}`;
+            els.subtitleOverlay.style.fontFamily = s.fontFamily;
+            els.subtitleOverlay.style.fontSize = `${s.fontSize}px`;
+            els.subtitleOverlay.style.color = s.fontColor;
+            els.subtitleOverlay.style.background = hexToRgba(s.bgColor, 0.78);
+            els.subtitleOverlay.style.fontWeight = s.bold ? '800' : '500';
+        }
+
+        function hexToRgba(hex, alpha) {
+            const value = String(hex || '#000000').replace('#', '');
+            const full = value.length === 3 ? value.split('').map(ch => ch + ch).join('') : value;
+            const r = parseInt(full.slice(0, 2), 16) || 0;
+            const g = parseInt(full.slice(2, 4), 16) || 0;
+            const b = parseInt(full.slice(4, 6), 16) || 0;
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        }
+
+        function normalizePath(path) {
+            const text = String(path || '').replace(/\\/g, '/');
+            return text.startsWith('/') ? text : `/${text}`;
+        }
+
+        async function apiJson(url, options) {
+            const response = await fetch(url, options);
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || data.code !== 0) {
+                throw new Error(data.msg || `请求失败：${response.status}`);
+            }
+            return data;
+        }
+
+        async function loadSubtitleStyles() {
+            try {
+                const res = await apiJson('/api/subtitle/styles', {method: 'GET'});
+                const styles = (res.data && res.data.styles) || [];
+                if (!styles.length) return;
+
+                const existing = new Set(Array.from(els.fontFamily.options).map(option => option.value));
+                styles.forEach(style => {
+                    if (!style || !style.font || existing.has(style.font)) return;
+                    const option = document.createElement('option');
+                    option.value = style.name || style.id || style.font;
+                    option.textContent = style.name || style.id || '字体样式';
+                    option.dataset.fontFile = style.font;
+                    option.dataset.family = style.name || style.id || '';
+                    els.fontFamily.appendChild(option);
+                    existing.add(style.font);
+                });
+            } catch (error) {
+                console.warn('加载字幕样式失败', error);
+            }
+        }
+
+        async function createProject() {
+            const now = new Date();
+            const name = `自动字幕-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+            const res = await apiJson('/api/projects', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    name,
+                    type: 'subtitle',
+                    description: '自动字幕工具创建的项目',
+                    template: 'subtitle_tool'
+                })
+            });
+            return res.data.id;
+        }
+
+        async function uploadVideo(file) {
+            const formData = new FormData();
+            formData.append('video', file);
+            formData.append('scene', 'subtitle');
+            const res = await apiJson('/api/upload/video', {
+                method: 'POST',
+                body: formData
+            });
+            return res.data;
+        }
+
+        async function createMaterial(projectId, uploadData, file) {
+            await apiJson('/api/materials', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    project_id: projectId,
+                    type: 'video',
+                    name: file.name,
+                    path: uploadData.path,
+                    size: uploadData.size || file.size || 0,
+                    duration: 0,
+                    metadata: {
+                        source: 'subtitle_tool',
+                        original_name: file.name
+                    }
+                })
+            });
+        }
+
+        async function generateSubtitles(projectId) {
+            const res = await apiJson('/api/subtitle/generate', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    project_id: projectId,
+                    language: els.language.value,
+                    model_size: els.modelSize.value,
+                    device: els.device.value,
+                    vad_filter: true
+                })
+            });
+            return (res.data && res.data.subtitles) || [];
+        }
+
+        async function createSubtitleGenerateTask(projectId) {
+            const res = await apiJson('/api/subtitle/generate-task', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    project_id: projectId,
+                    language: els.language.value,
+                    model_size: els.modelSize.value,
+                    device: els.device.value,
+                    vad_filter: true
+                })
+            });
+            return res.data.task_id;
+        }
+
+        async function createRenderVideoTask() {
+            const res = await apiJson('/api/subtitle/render-video-task', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    project_id: state.projectId,
+                    video_path: state.serverVideoPath,
+                    subtitles: state.subtitles,
+                    style: {
+                        position: state.style.position,
+                        fontFamily: state.style.fontFamily,
+                        fontFile: state.style.fontFile,
+                        fontSize: state.style.fontSize,
+                        fontColor: state.style.fontColor,
+                        bgColor: state.style.bgColor,
+                        bold: state.style.bold
+                    }
+                })
+            });
+            return res.data.task_id;
+        }
+
+        async function getTask(taskId) {
+            const res = await apiJson(`/api/tasks/${encodeURIComponent(taskId)}`, {method: 'GET'});
+            return res.data || {};
+        }
+
+        function normalizeTaskOutput(task) {
+            const output = task.output_data || {};
+            return typeof output === 'string' ? safeJson(output) : output;
+        }
+
+        function safeJson(text) {
+            try {
+                return JSON.parse(text || '{}');
+            } catch (error) {
+                return {};
+            }
+        }
+
+        async function pollTask(taskId, onUpdate) {
+            let done = false;
+            while (!done) {
+                const task = await getTask(taskId);
+                const output = normalizeTaskOutput(task);
+                onUpdate(task, output);
+                if (task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled') {
+                    done = true;
+                    return {task, output};
+                }
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+        }
+
+        async function handleGenerate() {
+            if (!state.videoFile) {
+                setStatus('请先选择一个视频文件。', 'error');
+                return;
+            }
+
+            readStyle();
+            els.generateBtn.disabled = true;
+            els.downloadSrtBtn.disabled = true;
+            els.downloadAssBtn.disabled = true;
+            els.renderVideoBtn.disabled = true;
+            hideExportActions();
+            state.serverVideoPath = '';
+            state.renderedVideoUrl = '';
+            state.currentTaskId = '';
+            state.subtitles = [];
+            renderSubtitles();
+            setProgress(0, '准备开始');
+
+            try {
+                setStatus('正在创建字幕项目...');
+                const projectId = await createProject();
+                state.projectId = projectId;
+
+                setStatus('正在上传视频...');
+                const uploadData = await uploadVideo(state.videoFile);
+                state.serverVideoPath = uploadData.path || '';
+                els.videoPreview.src = normalizePath(uploadData.path);
+
+                setStatus('正在登记视频素材...');
+                await createMaterial(projectId, uploadData, state.videoFile);
+
+                setStatus('已创建字幕识别任务，正在后台识别...');
+                const taskId = await createSubtitleGenerateTask(projectId);
+                state.currentTaskId = taskId;
+                setProgress(1, `任务已创建：${taskId}`);
+
+                const result = await pollTask(taskId, (task, output) => {
+                    const subtitles = Array.isArray(output.subtitles) ? output.subtitles : [];
+                    if (subtitles.length !== state.subtitles.length) {
+                        state.subtitles = subtitles
+                            .filter(item => item && String(item.text || '').trim())
+                            .map(item => ({
+                                start: Number(item.start) || 0,
+                                end: Number(item.end) || 0,
+                                text: String(item.text || '').trim()
+                            }));
+                        renderSubtitles();
+                    }
+                    const msg = output.message || (task.status === 'running' ? '正在识别语音' : task.status);
+                    setProgress(task.progress || 0, msg);
+                    setStatus(msg, task.status === 'failed' ? 'error' : '');
+                });
+
+                if (result.task.status === 'failed') {
+                    throw new Error(result.task.error_message || result.output.message || '字幕生成失败');
+                }
+
+                setStatus(`字幕生成完成，共 ${state.subtitles.length} 条。`, 'success');
+                setProgress(100, `字幕生成完成，共 ${state.subtitles.length} 条`);
+                els.downloadSrtBtn.disabled = state.subtitles.length === 0;
+                els.downloadAssBtn.disabled = state.subtitles.length === 0;
+                els.renderVideoBtn.disabled = state.subtitles.length === 0;
+            } catch (error) {
+                setStatus(error.message || '字幕生成失败。', 'error');
+                setProgress(0, error.message || '字幕生成失败');
+            } finally {
+                els.generateBtn.disabled = false;
+            }
+        }
+
+        async function renderSubtitleVideo() {
+            if (!state.subtitles.length) {
+                setStatus('请先生成字幕。', 'error');
+                return;
+            }
+            if (!state.projectId && !state.serverVideoPath) {
+                setStatus('未找到服务端视频文件，请重新上传并生成字幕。', 'error');
+                return;
+            }
+
+            readStyle();
+            els.renderVideoBtn.disabled = true;
+            hideExportActions();
+            setStatus('正在创建带字幕视频导出任务...');
+            setProgress(0, '准备导出视频');
+
+            try {
+                const taskId = await createRenderVideoTask();
+                state.renderTaskId = taskId;
+                const result = await pollTask(taskId, (task, output) => {
+                    const msg = output.message || (task.status === 'running' ? '正在导出带字幕视频' : task.status);
+                    setProgress(task.progress || 0, msg);
+                    setStatus(msg, task.status === 'failed' ? 'error' : '');
+                });
+
+                if (result.task.status === 'failed') {
+                    throw new Error(result.task.error_message || result.output.message || '导出带字幕视频失败');
+                }
+
+                state.renderedVideoUrl = result.output.output_url || '';
+                if (state.renderedVideoUrl) {
+                    els.videoPreview.src = state.renderedVideoUrl;
+                    els.videoPreview.hidden = false;
+                    els.emptyPreview.hidden = true;
+                    showExportActions(state.renderedVideoUrl);
+                    setStatus(`带字幕视频导出完成：${state.renderedVideoUrl}`, 'success');
+                    setProgress(100, '带字幕视频导出完成，可打开或下载');
+                } else {
+                    setStatus('带字幕视频导出完成，但后端未返回文件地址。', 'success');
+                    setProgress(100, '带字幕视频导出完成');
+                }
+            } catch (error) {
+                setStatus(error.message || '导出带字幕视频失败。', 'error');
+                setProgress(0, error.message || '导出带字幕视频失败');
+            } finally {
+                els.renderVideoBtn.disabled = state.subtitles.length === 0;
+            }
+        }
+
+        function renderSubtitles() {
+            els.subtitleCount.textContent = `${state.subtitles.length} 条字幕`;
+            els.subtitleList.innerHTML = '';
+            els.timeline.innerHTML = '';
+
+            if (!state.subtitles.length) {
+                els.subtitleList.innerHTML = '<div class="subtitle-row"><span class="time-cell">--:--</span><span class="time-cell">--:--</span><input class="subtitle-text" value="等待生成字幕" disabled></div>';
+                updateActiveSubtitle();
+                return;
+            }
+
+            const totalEnd = Math.max(...state.subtitles.map(item => item.end || 0), 1);
+            state.subtitles.forEach((item, index) => {
+                const row = document.createElement('div');
+                row.className = 'subtitle-row';
+                row.innerHTML = `
+                    <span class="time-cell">${formatClock(item.start)}</span>
+                    <span class="time-cell">${formatClock(item.end)}</span>
+                    <input class="subtitle-text" data-index="${index}" value="${escapeHtml(item.text)}">
+                `;
+                els.subtitleList.appendChild(row);
+
+                const segment = document.createElement('div');
+                segment.className = 'timeline-segment';
+                segment.style.left = `${Math.max(0, item.start / totalEnd * 100)}%`;
+                segment.style.width = `${Math.max(0.4, (item.end - item.start) / totalEnd * 100)}%`;
+                els.timeline.appendChild(segment);
+            });
+            updateActiveSubtitle();
+        }
+
+        function updateActiveSubtitle() {
+            const current = els.videoPreview.currentTime || 0;
+            const active = state.subtitles.find(item => current >= item.start && current <= item.end);
+            if (!active) {
+                els.subtitleOverlay.hidden = true;
+                els.subtitleOverlay.textContent = '';
+                return;
+            }
+            els.subtitleOverlay.hidden = false;
+            els.subtitleOverlay.textContent = active.text;
+            applyOverlayStyle();
+        }
+
+        function formatClock(seconds) {
+            const total = Math.max(0, Number(seconds) || 0);
+            const mins = Math.floor(total / 60);
+            const secs = Math.floor(total % 60);
+            return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
+
+        function formatSrtTime(seconds) {
+            const total = Math.max(0, Number(seconds) || 0);
+            const hours = Math.floor(total / 3600);
+            const minutes = Math.floor((total % 3600) / 60);
+            const secs = Math.floor(total % 60);
+            const millis = Math.round((total - Math.floor(total)) * 1000);
+            return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')},${String(millis).padStart(3, '0')}`;
+        }
+
+        function downloadText(filename, content, mime = 'text/plain;charset=utf-8') {
+            const blob = new Blob([content], {type: mime});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        }
+
+        function buildSrt() {
+            return state.subtitles.map((item, index) => [
+                String(index + 1),
+                `${formatSrtTime(item.start)} --> ${formatSrtTime(item.end)}`,
+                item.text,
+                ''
+            ].join('\n')).join('\n');
+        }
+
+        function buildAss() {
+            const s = state.style;
+            const alignmentMap = {bottom: 2, center: 5, top: 8};
+            const primary = hexToAssColor(s.fontColor);
+            const outline = hexToAssColor(s.bgColor);
+            const bold = s.bold ? -1 : 0;
+            const lines = [
+                '[Script Info]',
+                'ScriptType: v4.00+',
+                'PlayResX: 1920',
+                'PlayResY: 1080',
+                '',
+                '[V4+ Styles]',
+                'Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding',
+                `Style: Default,${s.fontFamily},${s.fontSize},${primary},${primary},${outline},&H80000000,${bold},0,0,0,100,100,0,0,1,3,0,${alignmentMap[s.position] || 2},80,80,70,1`,
+                '',
+                '[Events]',
+                'Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text'
+            ];
+            state.subtitles.forEach(item => {
+                lines.push(`Dialogue: 0,${formatAssTime(item.start)},${formatAssTime(item.end)},Default,,0,0,0,,${escapeAssText(item.text)}`);
+            });
+            return lines.join('\n');
+        }
+
+        function hexToAssColor(hex) {
+            const value = String(hex || '#ffffff').replace('#', '').padEnd(6, '0');
+            const r = value.slice(0, 2);
+            const g = value.slice(2, 4);
+            const b = value.slice(4, 6);
+            return `&H00${b}${g}${r}`;
+        }
+
+        function formatAssTime(seconds) {
+            const total = Math.max(0, Number(seconds) || 0);
+            const hours = Math.floor(total / 3600);
+            const minutes = Math.floor((total % 3600) / 60);
+            const secs = Math.floor(total % 60);
+            const centis = Math.floor((total - Math.floor(total)) * 100);
+            return `${hours}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}.${String(centis).padStart(2, '0')}`;
+        }
+
+        function escapeAssText(text) {
+            return String(text || '')
+                .replace(/\{/g, '(')
+                .replace(/\}/g, ')')
+                .replace(/\r?\n/g, '\\N');
+        }
+
+        els.videoFile.addEventListener('change', () => {
+            const file = els.videoFile.files && els.videoFile.files[0];
+            state.videoFile = file || null;
+            state.serverVideoPath = '';
+            state.renderedVideoUrl = '';
+            state.currentTaskId = '';
+            state.renderTaskId = '';
+            state.subtitles = [];
+            renderSubtitles();
+            els.downloadSrtBtn.disabled = true;
+            els.downloadAssBtn.disabled = true;
+            els.renderVideoBtn.disabled = true;
+            hideExportActions();
+            setProgress(0, '暂无运行中的任务。');
+
+            if (state.videoUrl) {
+                URL.revokeObjectURL(state.videoUrl);
+                state.videoUrl = '';
+            }
+
+            if (!file) {
+                els.videoPreview.hidden = true;
+                els.emptyPreview.hidden = false;
+                setStatus('等待选择视频。');
+                return;
+            }
+
+            state.videoUrl = URL.createObjectURL(file);
+            els.videoPreview.src = state.videoUrl;
+            els.videoPreview.hidden = false;
+            els.emptyPreview.hidden = true;
+            setStatus(`已选择：${file.name}`);
+        });
+
+        els.generateBtn.addEventListener('click', handleGenerate);
+        els.renderVideoBtn.addEventListener('click', renderSubtitleVideo);
+        els.applyStyleBtn.addEventListener('click', () => {
+            readStyle();
+            updateActiveSubtitle();
+            setStatus('已将样式应用到全部字幕预览和ASS导出。', 'success');
+        });
+        els.downloadSrtBtn.addEventListener('click', () => {
+            setStatus('正在下载SRT字幕文件。', 'success');
+            downloadText('auto-subtitle.srt', buildSrt(), 'application/x-subrip;charset=utf-8');
+        });
+        els.downloadAssBtn.addEventListener('click', () => {
+            readStyle();
+            setStatus('正在下载ASS字幕文件。', 'success');
+            downloadText('auto-subtitle.ass', buildAss(), 'text/plain;charset=utf-8');
+        });
+        els.downloadVideoLink.addEventListener('click', () => setStatus('正在下载带字幕视频。', 'success'));
+        els.openVideoLink.addEventListener('click', () => setStatus('正在打开带字幕视频。', 'success'));
+        els.videoPreview.addEventListener('timeupdate', updateActiveSubtitle);
+        els.videoPreview.addEventListener('seeked', updateActiveSubtitle);
+        els.subtitleList.addEventListener('input', event => {
+            const input = event.target.closest('.subtitle-text');
+            if (!input || input.dataset.index === undefined) return;
+            const index = Number(input.dataset.index);
+            if (state.subtitles[index]) {
+                state.subtitles[index].text = input.value;
+                updateActiveSubtitle();
+            }
+        });
+        [els.position, els.fontFamily, els.fontSize, els.fontColor, els.bgColor, els.boldText].forEach(el => {
+            el.addEventListener('input', () => {
+                readStyle();
+                updateActiveSubtitle();
+            });
+        });
+
+        loadSubtitleStyles().finally(() => {
+            readStyle();
+            renderSubtitles();
+        });
+    </script>
+</body>
+</html>

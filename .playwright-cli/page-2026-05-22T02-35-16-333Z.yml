@@ -1,0 +1,487 @@
+- generic [active] [ref=e1]:
+  - button "← 返回首页" [ref=e2] [cursor=pointer]
+  - generic [ref=e3]:
+    - button "🎙️ 原创解说" [ref=e4] [cursor=pointer]
+    - button "✂️ 混剪模式" [ref=e5] [cursor=pointer]
+    - button "🎬 编辑器" [ref=e6] [cursor=pointer]
+    - button "🧹 清理产物" [ref=e7] [cursor=pointer]
+  - generic [ref=e9]:
+    - heading "AI智能配音 · 专业版" [level=1] [ref=e10]
+    - paragraph [ref=e11]: 多音色选择 · 参数精调 · 秒级生成
+  - generic [ref=e13]:
+    - generic [ref=e14]:
+      - generic [ref=e15]:
+        - generic [ref=e16]: 1️⃣ 选择TTS引擎
+        - generic [ref=e17]:
+          - generic [ref=e18] [cursor=pointer]:
+            - generic [ref=e19]: 🎙️
+            - generic [ref=e20]: Edge-TTS
+            - generic [ref=e21]: 微软Azure · 免费 · 高质量
+            - generic [ref=e22]: 推荐
+          - generic [ref=e23] [cursor=pointer]:
+            - generic [ref=e24]: ☁️
+            - generic [ref=e25]: Azure TTS
+            - generic [ref=e26]: 微软Azure · 付费 · 专业级
+          - generic [ref=e27] [cursor=pointer]:
+            - generic [ref=e28]: 🎭
+            - generic [ref=e29]: 本地克隆语音
+            - generic [ref=e30]: Voice Clone · 本地部署 · 克隆音色
+          - generic [ref=e31] [cursor=pointer]:
+            - generic [ref=e32]: 🧠
+            - generic [ref=e33]: Voice-Pro 外部引擎
+            - generic [ref=e34]: 独立 WebUI · 高级本地多语种配音
+          - generic [ref=e35] [cursor=pointer]:
+            - generic [ref=e36]: 🌐
+            - generic [ref=e37]: Google TTS
+            - generic [ref=e38]: 免费 · 多语言支持
+        - button "🎧 套用短视频配音推荐参数" [ref=e40] [cursor=pointer]
+      - generic [ref=e41]:
+        - generic [ref=e42]: 2️⃣ 选择AI音色
+        - generic [ref=e43]:
+          - heading "🎭 Voice Clone 音色库（11种内置 + 自定义）" [level=4] [ref=e44]
+          - generic [ref=e45]:
+            - generic [ref=e46] [cursor=pointer]:
+              - generic [ref=e47]: 🎭
+              - generic [ref=e48]: 英语-澳大利亚
+              - generic [ref=e49]: English · Australia
+            - generic [ref=e50] [cursor=pointer]:
+              - generic [ref=e51]: 🎭
+              - generic [ref=e52]: 英语-英国
+              - generic [ref=e53]: English · Britain
+            - generic [ref=e54] [cursor=pointer]:
+              - generic [ref=e55]: 🎭
+              - generic [ref=e56]: 英语-默认
+              - generic [ref=e57]: English · Default
+            - generic [ref=e58] [cursor=pointer]:
+              - generic [ref=e59]: 🎭
+              - generic [ref=e60]: 英语-印度
+              - generic [ref=e61]: English · India
+            - generic [ref=e62] [cursor=pointer]:
+              - generic [ref=e63]: 🎭
+              - generic [ref=e64]: 英语-最新
+              - generic [ref=e65]: English · Newest
+            - generic [ref=e66] [cursor=pointer]:
+              - generic [ref=e67]: 🎭
+              - generic [ref=e68]: 英语-美国
+              - generic [ref=e69]: English · US
+            - generic [ref=e70] [cursor=pointer]:
+              - generic [ref=e71]: 🎭
+              - generic [ref=e72]: 西班牙语
+              - generic [ref=e73]: Spanish · Spain
+            - generic [ref=e74] [cursor=pointer]:
+              - generic [ref=e75]: 🎭
+              - generic [ref=e76]: 法语
+              - generic [ref=e77]: French · France
+            - generic [ref=e78] [cursor=pointer]:
+              - generic [ref=e79]: 🎭
+              - generic [ref=e80]: 日语
+              - generic [ref=e81]: Japanese · Japan
+            - generic [ref=e82] [cursor=pointer]:
+              - generic [ref=e83]: 🎭
+              - generic [ref=e84]: 韩语
+              - generic [ref=e85]: Korean · Korea
+            - generic [ref=e86] [cursor=pointer]:
+              - generic [ref=e87]: 🎭
+              - generic [ref=e88]: 中文
+              - generic [ref=e89]: Chinese · China
+            - generic [ref=e90] [cursor=pointer]:
+              - generic [ref=e91]: 🎨
+              - generic [ref=e92]: 自定义克隆
+              - generic [ref=e93]: 上传音频 · 克隆任意音色
+              - generic [ref=e94]: NEW
+          - button "⚙️ 测试本地引擎配置" [ref=e96] [cursor=pointer]
+        - button "👂 试听选中音色" [ref=e97] [cursor=pointer]
+      - generic [ref=e98]:
+        - generic [ref=e99]: 3️⃣ 输入配音文本
+        - textbox "输入要转换成语音的文字内容..." [ref=e101]: 大家好，欢迎来到我的频道。今天我们要分享一些非常有趣的内容，希望大家喜欢！
+        - generic [ref=e102]: "字数统计: 37 字"
+        - generic [ref=e103]:
+          - button "📚 配音历史记录" [ref=e104] [cursor=pointer]
+          - button "⏱️ 最近3条配音" [ref=e105] [cursor=pointer]
+          - generic [ref=e106]: 查看和复用历史配音的文本、音色和参数配置
+        - generic [ref=e107]:
+          - generic [ref=e108]: 批量配音（可选）：在下方文本框中每行输入一段文案，将使用当前选中的音色和参数一次性生成多段配音。
+          - textbox "每行一段文案，例如： 片头文案... 主要内容第一段... 结尾感谢语..." [ref=e110]:
+            - /placeholder: "每行一段文案，例如：\n片头文案...\n主要内容第一段...\n结尾感谢语..."
+      - generic [ref=e111]:
+        - generic [ref=e112]: 4️⃣ 调整语音参数
+        - generic [ref=e113]:
+          - generic [ref=e114]:
+            - generic [ref=e115]:
+              - generic [ref=e117]:
+                - heading "语速" [level=4] [ref=e118]
+                - paragraph [ref=e119]: 调整语音播放速度
+              - generic [ref=e120]: +0%
+            - generic [ref=e121]:
+              - slider [ref=e122] [cursor=pointer]: "0"
+              - generic [ref=e123]:
+                - generic [ref=e124]: 🐌 慢速
+                - generic [ref=e125]: ⚡ 正常
+                - generic [ref=e126]: 🚀 快速
+          - generic [ref=e127]:
+            - generic [ref=e128]:
+              - generic [ref=e130]:
+                - heading "音调" [level=4] [ref=e131]
+                - paragraph [ref=e132]: 调整语音音高
+              - generic [ref=e133]: +0Hz
+            - generic [ref=e134]:
+              - slider [ref=e135] [cursor=pointer]: "0"
+              - generic [ref=e136]:
+                - generic [ref=e137]: 🎵 低音
+                - generic [ref=e138]: 🎶 正常
+                - generic [ref=e139]: 🎸 高音
+          - generic [ref=e140]:
+            - generic [ref=e141]:
+              - generic [ref=e143]:
+                - heading "音量" [level=4] [ref=e144]
+                - paragraph [ref=e145]: 调整语音音量大小
+              - generic [ref=e146]: +0%
+            - generic [ref=e147]:
+              - slider [ref=e148] [cursor=pointer]: "0"
+              - generic [ref=e149]:
+                - generic [ref=e150]: 🔇 小声
+                - generic [ref=e151]: 🔊 正常
+                - generic [ref=e152]: 📢 大声
+      - generic [ref=e153]:
+        - generic [ref=e154]: 🧬 AI语音技术高级配置
+        - paragraph [ref=e155]: 专业级语音技术参数配置，可选
+        - generic [ref=e156]:
+          - generic [ref=e157]:
+            - generic [ref=e158]: 🎼
+            - generic [ref=e159]:
+              - heading "TTS声学模型配置" [level=3] [ref=e160]
+              - paragraph [ref=e161]: 端到端神经网络语音合成模型
+          - generic [ref=e162]:
+            - generic [ref=e163]:
+              - generic [ref=e164]:
+                - generic [ref=e165]: 🏗️
+                - text: 声学模型架构
+              - combobox [ref=e166]:
+                - option "✨ Transformer TTS（推荐）" [selected]
+                - option "🎯 Tacotron 2"
+                - option "⚡ FastSpeech 2"
+                - option "🌊 Glow-TTS"
+                - option "🚀 VITS（端到端）"
+              - paragraph [ref=e167]: 选择神经网络架构
+            - generic [ref=e168]:
+              - generic [ref=e169]:
+                - generic [ref=e170]: 🎯
+                - text: 模型精度
+              - combobox [ref=e171]:
+                - option "💎 高精度（FP32）"
+                - option "⚖️ 标准（FP16）" [selected]
+                - option "📦 量化（INT8）"
+                - option "🎈 蒸馏（轻量）"
+              - paragraph [ref=e172]: 平衡质量与速度
+        - generic [ref=e173]:
+          - generic [ref=e174]:
+            - generic [ref=e175]: 🎵
+            - generic [ref=e176]:
+              - heading "声码器(Vocoder)配置" [level=3] [ref=e177]
+              - paragraph [ref=e178]: 将声学特征转换为语音波形
+          - generic [ref=e179]:
+            - generic [ref=e180]:
+              - generic [ref=e181]:
+                - generic [ref=e182]: 🔊
+                - text: 声码器类型
+              - combobox [ref=e183]:
+                - option "🎯 HiFi-GAN（高保真）" [selected]
+                - option "💎 WaveNet（高质量）"
+                - option "🌊 WaveGlow（并行）"
+                - option "✨ DiffWave（扩散）"
+                - option "⚡ MelGAN（快速）"
+            - generic [ref=e184]:
+              - generic [ref=e185]:
+                - generic [ref=e186]: ⚡
+                - text: 生成策略
+              - combobox [ref=e187]:
+                - option "🚀 并行生成（快速）" [selected]
+                - option "🎯 自回归（高质）"
+                - option "⚖️ 基于流（平衡）"
+          - generic [ref=e188]:
+            - generic [ref=e189]:
+              - generic [ref=e190]:
+                - generic [ref=e191]: 🎚️
+                - text: 采样率
+              - combobox [ref=e192]:
+                - option "📻 16kHz（标准）"
+                - option "✨ 22.05kHz（推荐）" [selected]
+                - option "💿 24kHz（高质）"
+                - option "🎵 44.1kHz（CD质量）"
+                - option "🎬 48kHz（专业级）"
+            - generic [ref=e193]:
+              - generic [ref=e194]:
+                - generic [ref=e195]: 🔢
+                - text: 比特深度
+              - combobox [ref=e196]:
+                - option "📦 16-bit（标准）"
+                - option "💎 24-bit（高保真）" [selected]
+                - option "🏆 32-bit（专业）"
+        - generic [ref=e197]:
+          - generic [ref=e199]:
+            - generic [ref=e200]: 🎭
+            - generic [ref=e201]:
+              - heading "韵律预测配置" [level=3] [ref=e202]
+              - paragraph [ref=e203]: 基频、时长、能量的智能预测
+          - generic [ref=e204]:
+            - generic [ref=e205]:
+              - generic [ref=e206]:
+                - generic [ref=e207]:
+                  - generic [ref=e208]: 📈
+                  - generic [ref=e209]: 基频(F0)预测
+                - combobox [ref=e210] [cursor=pointer]:
+                  - option "🧠 神经网络预测" [selected]
+                  - option "🔄 LSTM预测"
+                  - option "⚡ Transformer预测"
+                  - option "📋 基于规则"
+                - generic [ref=e211]:
+                  - strong [ref=e212]: 提示：
+                  - text: 控制语音的音高变化
+              - generic [ref=e213]:
+                - generic [ref=e214]:
+                  - generic [ref=e215]: ⏱️
+                  - generic [ref=e216]: 时长预测模型
+                - combobox [ref=e217] [cursor=pointer]:
+                  - option "🎯 方差适配器" [selected]
+                  - option "⏳ 时长预测器"
+                  - option "👁️ 基于注意力"
+                - generic [ref=e218]:
+                  - strong [ref=e219]: 提示：
+                  - text: 控制每个音素的时长
+            - generic [ref=e220]:
+              - generic [ref=e221]:
+                - generic [ref=e222]:
+                  - generic [ref=e223]: 💫
+                  - generic [ref=e224]: 能量预测
+                - combobox [ref=e225] [cursor=pointer]:
+                  - option "✨ 自动预测" [selected]
+                  - option "🎞️ 帧级预测"
+                  - option "🔤 音素级预测"
+                - generic [ref=e226]:
+                  - strong [ref=e227]: 提示：
+                  - text: 控制语音的响度
+              - generic [ref=e228]:
+                - generic [ref=e229]:
+                  - generic [ref=e230]: 🎼
+                  - generic [ref=e231]: 韵律风格
+                - combobox [ref=e232] [cursor=pointer]:
+                  - option "🌿 自然风格" [selected]
+                  - option "🎨 表现力强"
+                  - option "😐 中性平稳"
+                  - option "⚡ 动态变化"
+                - generic [ref=e233]:
+                  - strong [ref=e234]: 提示：
+                  - text: 整体韵律表现风格
+        - generic [ref=e235]:
+          - generic [ref=e238]:
+            - generic [ref=e240]: 😊
+            - heading "情感TTS配置" [level=3] [ref=e241]
+            - paragraph [ref=e242]: 为语音注入情感的灵魂
+          - generic [ref=e243]:
+            - generic [ref=e244]:
+              - generic [ref=e245]: 🎭 选择情感类型
+              - generic [ref=e246]:
+                - generic [ref=e247] [cursor=pointer]:
+                  - generic [ref=e248]: 😐
+                  - generic [ref=e249]: 中性
+                - generic [ref=e250] [cursor=pointer]:
+                  - generic [ref=e251]: 😄
+                  - generic [ref=e252]: 开心
+                - generic [ref=e253] [cursor=pointer]:
+                  - generic [ref=e254]: 😢
+                  - generic [ref=e255]: 悲伤
+                - generic [ref=e256] [cursor=pointer]:
+                  - generic [ref=e257]: 😠
+                  - generic [ref=e258]: 愤怒
+                - generic [ref=e259] [cursor=pointer]:
+                  - generic [ref=e260]: 🤩
+                  - generic [ref=e261]: 兴奋
+                - generic [ref=e262] [cursor=pointer]:
+                  - generic [ref=e263]: 😌
+                  - generic [ref=e264]: 平静
+                - generic [ref=e265] [cursor=pointer]:
+                  - generic [ref=e266]: 😨
+                  - generic [ref=e267]: 恐惧
+                - generic [ref=e268] [cursor=pointer]:
+                  - generic [ref=e269]: 🥰
+                  - generic [ref=e270]: 温柔
+            - generic [ref=e271]:
+              - generic [ref=e272]:
+                - generic [ref=e273]:
+                  - generic [ref=e274]: 📊
+                  - text: 情感强度
+                - combobox [ref=e275]:
+                  - option "💧 微弱（10-30%）"
+                  - option "💦 适中（30-60%）" [selected]
+                  - option "💨 强烈（60-90%）"
+                  - option "💥 极强（90-100%）"
+              - generic [ref=e276]:
+                - generic [ref=e277]:
+                  - generic [ref=e278]: 🎨
+                  - text: 建模方式
+                - combobox [ref=e279]:
+                  - option "🧬 情感嵌入" [selected]
+                  - option "🎯 情感分类器"
+                  - option "🔮 变分自编码器"
+                  - option "🎭 风格令牌"
+              - generic [ref=e280]:
+                - generic [ref=e281]:
+                  - generic [ref=e282]: 🔄
+                  - text: 迁移强度
+                - combobox [ref=e283]:
+                  - option "🐢 保守（贴近原文）"
+                  - option "🚶 适中" [selected]
+                  - option "🚀 激进（情感明显）"
+        - generic [ref=e284]:
+          - generic [ref=e285]:
+            - generic [ref=e286]: 👤
+            - generic [ref=e287]:
+              - heading "说话人嵌入(Speaker Embedding)配置" [level=4] [ref=e288]
+              - paragraph [ref=e289]: 多说话人语音合成和语音克隆
+          - generic [ref=e290]:
+            - generic [ref=e291]:
+              - generic [ref=e292]: 🧬 嵌入提取模型
+              - combobox [ref=e293]:
+                - option "ECAPA-TDNN（推荐）" [selected]
+                - option "GE2E（端到端）"
+                - option "d-vector（LSTM）"
+                - option "x-vector（时延）"
+            - generic [ref=e294]:
+              - generic [ref=e295]: 📏 嵌入维度
+              - combobox [ref=e296]:
+                - option "128维（轻量）"
+                - option "256维（标准）" [selected]
+                - option "512维（高表达）"
+          - generic [ref=e297]:
+            - generic [ref=e298]:
+              - generic [ref=e299]: 🎯 相似度度量
+              - combobox [ref=e300]:
+                - option "余弦相似度" [selected]
+                - option "欧氏距离"
+                - option "余弦+欧氏组合"
+                - option "学习度量"
+            - generic [ref=e301]:
+              - generic [ref=e302]: 🔄 嵌入融合策略
+              - combobox [ref=e303]:
+                - option "特征拼接" [selected]
+                - option "特征相加"
+                - option "注意力融合"
+                - option "门控融合"
+        - generic [ref=e304]:
+          - generic [ref=e305]:
+            - generic [ref=e306]: 🔊
+            - generic [ref=e307]:
+              - heading "音频特征提取配置" [level=4] [ref=e308]
+              - paragraph [ref=e309]: MFCC、梅尔频谱等声学特征
+          - generic [ref=e310]:
+            - generic [ref=e311]:
+              - generic [ref=e312]: 📊 特征类型
+              - combobox [ref=e313]:
+                - option "梅尔频谱图" [selected]
+                - option "MFCC特征"
+                - option "对数梅尔频谱"
+                - option "线性频谱图"
+            - generic [ref=e314]:
+              - generic [ref=e315]: 🎚️ 梅尔滤波器组数
+              - combobox [ref=e316]:
+                - option "40（快速）"
+                - option "80（标准）" [selected]
+                - option "128（高分辨率）"
+          - generic [ref=e317]:
+            - generic [ref=e318]:
+              - generic [ref=e319]: 🔢 FFT点数
+              - combobox [ref=e320]:
+                - option "512点"
+                - option "1024点" [selected]
+                - option "2048点"
+                - option "4096点"
+            - generic [ref=e321]:
+              - generic [ref=e322]: ⏩ 帧移(Hop Length)
+              - combobox [ref=e323]:
+                - option "128（高时间分辨率）"
+                - option "256（标准）" [selected]
+                - option "512（低时间分辨率）"
+        - generic [ref=e324]:
+          - generic [ref=e325]:
+            - generic [ref=e326]: 🔄
+            - generic [ref=e327]:
+              - heading "数据增强配置（语音克隆）" [level=4] [ref=e328]
+              - paragraph [ref=e329]: 提高语音克隆的数据效率
+          - generic [ref=e330]:
+            - generic [ref=e331]:
+              - generic [ref=e332]: ⏱️ 时间拉伸范围
+              - combobox [ref=e333]:
+                - option "不使用"
+                - option "窄范围（0.9-1.1x）"
+                - option "适中（0.8-1.2x）" [selected]
+                - option "宽范围（0.7-1.3x）"
+            - generic [ref=e334]:
+              - generic [ref=e335]: 🎵 音调偏移范围
+              - combobox [ref=e336]:
+                - option "不使用"
+                - option "±1半音"
+                - option "±2半音" [selected]
+                - option "±3半音"
+          - generic [ref=e337]:
+            - generic [ref=e338]:
+              - generic [ref=e339]: 🔊 噪声添加强度
+              - combobox [ref=e340]:
+                - option "不添加"
+                - option "轻微（SNR 20-30dB）" [selected]
+                - option "适中（SNR 10-20dB）"
+                - option "较重（SNR 5-10dB）"
+            - generic [ref=e341]:
+              - generic [ref=e342]: 🎚️ 音量变化范围
+              - combobox [ref=e343]:
+                - option "不使用"
+                - option "小范围（0.8-1.2x）" [selected]
+                - option "中范围（0.7-1.3x）"
+                - option "大范围（0.6-1.4x）"
+        - generic [ref=e344]:
+          - generic [ref=e345]:
+            - generic [ref=e346]: ⚡
+            - generic [ref=e347]:
+              - heading "技术性能优化" [level=4] [ref=e348]
+              - paragraph [ref=e349]: 处理速度与质量的平衡
+          - generic [ref=e350]:
+            - generic [ref=e351]:
+              - generic [ref=e352]: 🚀 推理速度模式
+              - combobox [ref=e353]:
+                - option "质量优先（慢）"
+                - option "平衡模式" [selected]
+                - option "速度优先（快）"
+                - option "实时模式（最快）"
+            - generic [ref=e354]:
+              - generic [ref=e355]: 💻 计算设备
+              - combobox [ref=e356]:
+                - option "自动选择" [selected]
+                - option "CPU"
+                - option "GPU（CUDA）"
+                - option "GPU半精度"
+          - generic [ref=e357]:
+            - generic [ref=e358]:
+              - generic [ref=e359]: 📦 批处理大小
+              - combobox [ref=e360]:
+                - option "1（逐个处理）"
+                - option "4（小批量）"
+                - option "8（标准）" [selected]
+                - option "16（大批量）"
+            - generic [ref=e361]:
+              - generic [ref=e362]: 💾 缓存策略
+              - combobox [ref=e363]:
+                - option "禁用缓存"
+                - option "最小缓存"
+                - option "智能缓存" [selected]
+                - option "激进缓存"
+      - generic [ref=e364]:
+        - generic [ref=e365]: 5️⃣ 生成AI配音
+        - generic [ref=e366]:
+          - button "🎙️ 生成配音" [ref=e367] [cursor=pointer]
+          - button "📚 批量生成配音（按行拆分文稿）" [ref=e368] [cursor=pointer]
+    - complementary [ref=e369]:
+      - generic [ref=e370]:
+        - generic [ref=e371]:
+          - generic [ref=e372]: 🎧
+          - generic [ref=e373]: 最近配音项目
+        - generic [ref=e374]: 最近 5 个项目刷新
+      - generic [ref=e376]: 暂无最近项目

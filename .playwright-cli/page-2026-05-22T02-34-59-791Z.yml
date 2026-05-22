@@ -1,0 +1,56 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]: 💡 提示：每个功能页面都有"返回首页"按钮
+  - generic [ref=e3]:
+    - generic [ref=e4]: JJYB
+    - generic [ref=e5]: AI智剪 - 智能视频剪辑工具
+    - generic [ref=e6]: 让视频创作更简单，让AI为你服务
+  - generic [ref=e7]:
+    - link "🎬 视频编辑器" [ref=e8] [cursor=pointer]:
+      - /url: /editor
+    - link "📁 项目管理" [ref=e9] [cursor=pointer]:
+      - /url: /projects
+    - link "⚙️ 系统设置" [ref=e10] [cursor=pointer]:
+      - /url: /settings
+  - generic [ref=e11]:
+    - link "🎙️ 原创解说剪辑 AI自动剪辑+智能配音配乐，一键生成专业解说视频 ✓AI自动剪辑 ✓智能配音配乐 ✓文稿自动生成 ✓5种音色可选 开始创作" [ref=e12] [cursor=pointer]:
+      - /url: /commentary
+      - generic [ref=e13]: 🎙️
+      - generic [ref=e14]: 原创解说剪辑
+      - generic [ref=e15]: AI自动剪辑+智能配音配乐，一键生成专业解说视频
+      - list [ref=e16]:
+        - listitem [ref=e17]: ✓AI自动剪辑
+        - listitem [ref=e18]: ✓智能配音配乐
+        - listitem [ref=e19]: ✓文稿自动生成
+        - listitem [ref=e20]: ✓5种音色可选
+      - generic [ref=e21]: 开始创作
+    - link "✂️ 混剪模式 批量处理多个视频，智能识别精彩片段，多种风格混剪 ✓批量视频处理 ✓智能识别精彩片段 ✓3种风格可选 ✓自动添加转场 开始混剪" [ref=e22] [cursor=pointer]:
+      - /url: /remix
+      - generic [ref=e23]: ✂️
+      - generic [ref=e24]: 混剪模式
+      - generic [ref=e25]: 批量处理多个视频，智能识别精彩片段，多种风格混剪
+      - list [ref=e26]:
+        - listitem [ref=e27]: ✓批量视频处理
+        - listitem [ref=e28]: ✓智能识别精彩片段
+        - listitem [ref=e29]: ✓3种风格可选
+        - listitem [ref=e30]: ✓自动添加转场
+      - generic [ref=e31]: 开始混剪
+    - link "🔊 AI配音 多种AI音色，文字转语音生成，语速语调自由调整 ✓5种AI音色 ✓文字转语音 ✓参数精细调节 ✓实时预览试听 开始配音" [ref=e32] [cursor=pointer]:
+      - /url: /voiceover
+      - generic [ref=e33]: 🔊
+      - generic [ref=e34]: AI配音
+      - generic [ref=e35]: 多种AI音色，文字转语音生成，语速语调自由调整
+      - list [ref=e36]:
+        - listitem [ref=e37]: ✓5种AI音色
+        - listitem [ref=e38]: ✓文字转语音
+        - listitem [ref=e39]: ✓参数精细调节
+        - listitem [ref=e40]: ✓实时预览试听
+      - generic [ref=e41]: 开始配音
+  - generic [ref=e42]:
+    - link "📁 项目管理" [ref=e43] [cursor=pointer]:
+      - /url: /projects
+    - link "🎬 素材库" [ref=e44] [cursor=pointer]:
+      - /url: /materials
+    - link "⚙️ 系统设置" [ref=e45] [cursor=pointer]:
+      - /url: /settings
+    - link "🎯 模式选择" [ref=e46] [cursor=pointer]:
+      - /url: /mode_select
