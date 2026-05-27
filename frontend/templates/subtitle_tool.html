@@ -213,6 +213,118 @@
             color: #065f46;
         }
 
+        .history-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .section-title {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 800;
+            color: #1f2a44;
+        }
+
+        .mini-btn {
+            min-height: 32px;
+            padding: 0 10px;
+            border: 1px solid #d7ddea;
+            border-radius: 7px;
+            background: #ffffff;
+            color: #334155;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .history-list {
+            display: grid;
+            gap: 8px;
+            max-height: 260px;
+            overflow-y: auto;
+            margin-bottom: 16px;
+        }
+
+        .history-item {
+            width: 100%;
+            text-align: left;
+            border: 1px solid #e1e7f2;
+            border-radius: 8px;
+            background: #ffffff;
+            padding: 10px 11px;
+            cursor: pointer;
+        }
+
+        .history-item.active {
+            border-color: #2563eb;
+            background: #eff6ff;
+        }
+
+        .history-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 800;
+            color: #172033;
+        }
+
+        .history-meta {
+            margin-top: 6px;
+            color: #64748b;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+
+        .badge {
+            flex: none;
+            border-radius: 999px;
+            padding: 3px 7px;
+            background: #e2e8f0;
+            color: #475569;
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        .badge.running,
+        .badge.processing {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .badge.completed {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .badge.failed {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .project-meta {
+            display: grid;
+            gap: 5px;
+            margin-bottom: 16px;
+            padding: 10px 12px;
+            border: 1px solid #e3e8f3;
+            border-radius: 8px;
+            background: #f8fafc;
+            color: #475569;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+
+        .divider {
+            height: 1px;
+            margin: 16px 0;
+            background: #edf1f7;
+        }
+
         .progress-wrap {
             margin-top: 12px;
             display: grid;
@@ -248,6 +360,73 @@
 
         .export-actions[hidden] {
             display: none;
+        }
+
+        .busy-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 80;
+            display: grid;
+            place-items: center;
+            background: rgba(15, 23, 42, 0.32);
+        }
+
+        .busy-overlay[hidden] {
+            display: none;
+        }
+
+        .busy-box {
+            min-width: 260px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 18px;
+            border-radius: 8px;
+            background: #ffffff;
+            color: #172033;
+            box-shadow: 0 18px 48px rgba(15, 23, 42, 0.2);
+            font-size: 14px;
+            font-weight: 800;
+        }
+
+        .busy-content {
+            display: grid;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .busy-actions {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .busy-cancel {
+            min-height: 30px;
+            padding: 0 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 7px;
+            background: #ffffff;
+            color: #334155;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .busy-cancel[hidden] {
+            display: none;
+        }
+
+        .spinner {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            border: 3px solid #dbeafe;
+            border-top-color: #2563eb;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
 
         .preview-panel {
@@ -426,6 +605,14 @@
                 <p class="panel-subtitle">选择视频后会自动创建临时项目、登记素材，并调用本地 faster-whisper 生成时间轴字幕。</p>
             </div>
             <div class="panel-body">
+                <div class="history-head">
+                    <h2 class="section-title">字幕项目记录</h2>
+                    <button id="refreshSessionsBtn" class="mini-btn" type="button">刷新</button>
+                </div>
+                <div id="sessionList" class="history-list"></div>
+                <div id="currentProjectMeta" class="project-meta">当前未选择字幕项目。</div>
+                <div class="divider"></div>
+
                 <div class="field">
                     <label for="videoFile">视频文件</label>
                     <input id="videoFile" type="file" accept="video/*">
@@ -541,15 +728,192 @@
             <div id="subtitleList" class="subtitle-list"></div>
         </section>
     </main>
+    <div id="busyOverlay" class="busy-overlay" hidden>
+        <div class="busy-box">
+            <span class="spinner"></span>
+            <div class="busy-content">
+                <span id="busyText">正在处理...</span>
+                <div class="busy-actions">
+                    <button id="busyCancelBtn" class="busy-cancel" type="button" hidden>取消</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script>
+        const STORAGE_KEY = 'subtitle_tool_session';
+
+        // 只把 projectId 和 style 存在 localStorage 作为"书签"，数据源是数据库
+        function saveSessionRef() {
+            const ref = { projectId: state.projectId, style: state.style };
+            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(ref)); } catch (e) { /* ignore */ }
+        }
+
+        function loadSessionRef() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (!raw) return null;
+                return JSON.parse(raw);
+            } catch (e) { return null; }
+        }
+
+        function clearSessionRef() {
+            try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* ignore */ }
+        }
+
+        let activeRestoreSeq = 0;
+        let activeRestoreController = null;
+        let activeTaskPollToken = 0;
+
+        function isAbortError(error) {
+            return error && error.name === 'AbortError';
+        }
+
+        // 从数据库 API 恢复完整会话数据
+        async function restoreSession(projectId) {
+            const restoreSeq = ++activeRestoreSeq;
+            const pollToken = ++activeTaskPollToken;
+            if (activeRestoreController) {
+                activeRestoreController.abort();
+            }
+            const controller = new AbortController();
+            activeRestoreController = controller;
+            try {
+                setBusy(true, '正在恢复字幕项目...', () => controller.abort());
+                const res = await apiJson(
+                    `/api/subtitle/session/${encodeURIComponent(projectId)}`,
+                    { method: 'GET', signal: controller.signal },
+                    20000
+                );
+                if (restoreSeq !== activeRestoreSeq) return false;
+                const data = res.data;
+                if (!data) return false;
+
+                applySessionData(data);
+
+                if (state.subtitles.length > 0) {
+                    setStatus(`已恢复 ${data.subtitles.length} 条字幕。`, 'success');
+                    setProgress(100, `已恢复 ${data.subtitles.length} 条字幕`);
+                } else {
+                    setStatus('已恢复字幕项目，可继续生成或调整字幕。', 'success');
+                    setProgress(0, '项目已恢复');
+                }
+
+                // 恢复正在执行的任务
+                if (data.current_task_id) {
+                    state.currentTaskId = data.current_task_id;
+                    state.currentTaskType = data.current_task_type || '';
+                    setStatus('检测到后台任务仍在运行，已恢复项目数据，任务进度将在后台同步。', 'success');
+                    setProgress(data.current_task_progress || 5, '后台任务同步中，可继续切换项目');
+                    resumeTask(data.current_task_id, data.current_task_type || '', data.project_id || projectId, pollToken);
+                }
+
+                saveSessionRef();
+                return true;
+            } catch (e) {
+                if (restoreSeq !== activeRestoreSeq) return false;
+                if (isAbortError(e)) {
+                    setStatus('已取消恢复字幕项目。');
+                    setProgress(0, '恢复已取消');
+                } else {
+                    console.warn('从数据库恢复会话失败', e);
+                    setStatus(e.message || '恢复字幕项目失败。', 'error');
+                    setProgress(0, e.message || '恢复字幕项目失败');
+                }
+                return false;
+            } finally {
+                if (activeRestoreController === controller) {
+                    activeRestoreController = null;
+                }
+                if (restoreSeq === activeRestoreSeq) {
+                    setBusy(false);
+                }
+            }
+        }
+
+        // 恢复正在执行的任务
+        async function resumeTask(taskId, taskType = '', projectId = state.projectId, pollToken = activeTaskPollToken) {
+            const isCurrent = () => pollToken === activeTaskPollToken && state.projectId === projectId;
+            try {
+                if (!isCurrent()) return;
+                const task = await getTask(taskId);
+                if (!isCurrent()) return;
+                if (!task || task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled') {
+                    if (task && task.status === 'completed') {
+                        const output = normalizeTaskOutput(task);
+                        if (Array.isArray(output.subtitles) && output.subtitles.length > 0) {
+                            state.subtitles = output.subtitles
+                                .filter(item => item && String(item.text || '').trim())
+                                .map(item => ({
+                                    start: Number(item.start) || 0,
+                                    end: Number(item.end) || 0,
+                                    text: String(item.text || '').trim()
+                                }));
+                            renderSubtitles();
+                            els.downloadSrtBtn.disabled = false;
+                            els.downloadAssBtn.disabled = false;
+                            els.renderVideoBtn.disabled = false;
+                        }
+                        if (output.output_url) {
+                            state.renderedVideoUrl = output.output_url;
+                            showExportActions(output.output_url);
+                        }
+                    }
+                    updateProjectMeta();
+                    return;
+                }
+                setStatus('后台任务仍在运行，正在同步进度。', 'success');
+                setProgress(task.progress || 5, '后台任务同步中');
+                const result = await pollTask(taskId, (t, output) => {
+                    if (!isCurrent()) return;
+                    const subs = Array.isArray(output.subtitles) ? output.subtitles : [];
+                    if (subs.length !== state.subtitles.length) {
+                        state.subtitles = subs
+                            .filter(item => item && String(item.text || '').trim())
+                            .map(item => ({
+                                start: Number(item.start) || 0,
+                                end: Number(item.end) || 0,
+                                text: String(item.text || '').trim()
+                            }));
+                        renderSubtitles();
+                    }
+                    const msg = output.message || (t.status === 'running' ? '正在识别语音' : t.status);
+                    setProgress(t.progress || 0, msg);
+                    setStatus(msg, t.status === 'failed' ? 'error' : '');
+                }, 2 * 60 * 60 * 1000, isCurrent);
+                if (!result || result.cancelled || !isCurrent()) return;
+                if (result.task.status === 'completed') {
+                    if (result.output.output_url) {
+                        state.renderedVideoUrl = result.output.output_url;
+                        showExportActions(state.renderedVideoUrl);
+                        setStatus('带字幕视频导出完成，可打开或下载。', 'success');
+                        setProgress(100, '带字幕视频导出完成');
+                    } else {
+                        setStatus(`字幕生成完成，共 ${state.subtitles.length} 条。`, 'success');
+                        setProgress(100, `字幕生成完成，共 ${state.subtitles.length} 条`);
+                    }
+                    els.downloadSrtBtn.disabled = state.subtitles.length === 0;
+                    els.downloadAssBtn.disabled = state.subtitles.length === 0;
+                    els.renderVideoBtn.disabled = state.subtitles.length === 0;
+                    await saveSessionSnapshot(true);
+                    await loadSessions(false);
+                }
+            } catch (err) {
+                console.warn('恢复任务失败', err);
+            }
+        }
+
         const state = {
             projectId: '',
+            projectName: '',
+            sessions: [],
             videoFile: null,
             videoUrl: '',
             serverVideoPath: '',
+            videoName: '',
             renderedVideoUrl: '',
             currentTaskId: '',
+            currentTaskType: '',
             renderTaskId: '',
             subtitles: [],
             style: {
@@ -564,6 +928,12 @@
         };
 
         const els = {
+            sessionList: document.getElementById('sessionList'),
+            refreshSessionsBtn: document.getElementById('refreshSessionsBtn'),
+            currentProjectMeta: document.getElementById('currentProjectMeta'),
+            busyOverlay: document.getElementById('busyOverlay'),
+            busyText: document.getElementById('busyText'),
+            busyCancelBtn: document.getElementById('busyCancelBtn'),
             videoFile: document.getElementById('videoFile'),
             language: document.getElementById('language'),
             modelSize: document.getElementById('modelSize'),
@@ -596,6 +966,13 @@
         function setStatus(message, type = '') {
             els.status.textContent = message;
             els.status.className = type ? `status ${type}` : 'status';
+        }
+
+        function setBusy(active, message = '正在处理...', onCancel = null) {
+            els.busyText.textContent = message;
+            els.busyOverlay.hidden = !active;
+            els.busyCancelBtn.hidden = !(active && typeof onCancel === 'function');
+            els.busyCancelBtn.onclick = active && typeof onCancel === 'function' ? onCancel : null;
         }
 
         function setProgress(progress, message = '') {
@@ -641,6 +1018,7 @@
                 bold: els.boldText.checked
             };
             applyOverlayStyle();
+            if (state.subtitles.length > 0) saveSessionRef();
         }
 
         function applyOverlayStyle() {
@@ -667,13 +1045,214 @@
             return text.startsWith('/') ? text : `/${text}`;
         }
 
-        async function apiJson(url, options) {
-            const response = await fetch(url, options);
-            const data = await response.json().catch(() => ({}));
-            if (!response.ok || data.code !== 0) {
-                throw new Error(data.msg || `请求失败：${response.status}`);
+        async function apiJson(url, options = {}, timeoutMs = 60000) {
+            const requestOptions = {...options};
+            const externalSignal = requestOptions.signal;
+            const controller = new AbortController();
+            let didTimeout = false;
+            let timeoutId = null;
+            let abortExternal = null;
+
+            if (externalSignal) {
+                if (externalSignal.aborted) {
+                    controller.abort();
+                } else {
+                    abortExternal = () => controller.abort();
+                    externalSignal.addEventListener('abort', abortExternal, {once: true});
+                }
             }
-            return data;
+            if (timeoutMs > 0) {
+                timeoutId = setTimeout(() => {
+                    didTimeout = true;
+                    controller.abort();
+                }, timeoutMs);
+            }
+            requestOptions.signal = controller.signal;
+
+            try {
+                const response = await fetch(url, requestOptions);
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || data.code !== 0) {
+                    throw new Error(data.msg || `请求失败：${response.status}`);
+                }
+                return data;
+            } catch (error) {
+                if (error && error.name === 'AbortError') {
+                    const message = didTimeout ? '请求超时，请稍后重试。' : '请求已取消。';
+                    const abortError = new Error(message);
+                    abortError.name = didTimeout ? 'TimeoutError' : 'AbortError';
+                    throw abortError;
+                }
+                throw error;
+            } finally {
+                if (timeoutId) clearTimeout(timeoutId);
+                if (externalSignal && abortExternal) {
+                    externalSignal.removeEventListener('abort', abortExternal);
+                }
+            }
+        }
+
+        function statusLabel(status) {
+            const map = {
+                draft: '草稿',
+                processing: '处理中',
+                pending: '等待中',
+                running: '运行中',
+                completed: '已完成',
+                failed: '失败',
+                cancelled: '已取消'
+            };
+            return map[status] || status || '草稿';
+        }
+
+        function formatDateTime(value) {
+            if (!value) return '未知时间';
+            const normalized = String(value).replace(' ', 'T');
+            const date = new Date(normalized);
+            if (Number.isNaN(date.getTime())) return String(value);
+            const mm = String(date.getMonth() + 1).padStart(2, '0');
+            const dd = String(date.getDate()).padStart(2, '0');
+            const hh = String(date.getHours()).padStart(2, '0');
+            const mi = String(date.getMinutes()).padStart(2, '0');
+            return `${mm}-${dd} ${hh}:${mi}`;
+        }
+
+        function updateProjectMeta() {
+            if (!state.projectId) {
+                els.currentProjectMeta.textContent = '当前未选择字幕项目。';
+                return;
+            }
+            const subtitleInfo = `${state.subtitles.length} 条字幕`;
+            const videoInfo = state.videoName || state.serverVideoPath || '未登记视频';
+            els.currentProjectMeta.innerHTML = `
+                <strong>${escapeHtml(state.projectName || '自动字幕项目')}</strong>
+                <span>视频：${escapeHtml(videoInfo)}</span>
+                <span>项目ID：${escapeHtml(state.projectId)}</span>
+                <span>状态：${escapeHtml(subtitleInfo)}${state.currentTaskId ? `，任务 ${escapeHtml(state.currentTaskId)}` : ''}</span>
+            `;
+        }
+
+        function renderSessionList() {
+            els.sessionList.innerHTML = '';
+            if (!state.sessions.length) {
+                els.sessionList.innerHTML = '<div class="project-meta">暂无字幕项目记录。选择视频后会自动创建记录。</div>';
+                return;
+            }
+            state.sessions.forEach(item => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = `history-item${item.project_id === state.projectId ? ' active' : ''}`;
+                button.dataset.projectId = item.project_id;
+                const status = item.current_task_id ? 'running' : (item.status || 'draft');
+                const progress = item.current_task_id ? ` · ${Math.round(Number(item.current_task_progress) || 0)}%` : '';
+                button.innerHTML = `
+                    <div class="history-title">
+                        <span>${escapeHtml(item.name || '自动字幕项目')}</span>
+                        <span class="badge ${escapeHtml(status)}">${escapeHtml(statusLabel(status))}${progress}</span>
+                    </div>
+                    <div class="history-meta">
+                        ${escapeHtml(item.video_name || '未命名视频')}<br>
+                        ${Number(item.subtitle_count) || 0} 条字幕 · ${Number(item.task_count) || 0} 个任务 · ${formatDateTime(item.updated_at || item.created_at)}
+                    </div>
+                `;
+                els.sessionList.appendChild(button);
+            });
+        }
+
+        async function loadSessions(selectLatest = false) {
+            try {
+                const res = await apiJson('/api/subtitle/sessions?limit=50', {method: 'GET'});
+                state.sessions = (res.data && res.data.sessions) || [];
+                renderSessionList();
+                if (selectLatest && !state.projectId && state.sessions.length) {
+                    await restoreSession(state.sessions[0].project_id);
+                }
+            } catch (error) {
+                els.sessionList.innerHTML = `<div class="project-meta">记录加载失败：${escapeHtml(error.message)}</div>`;
+            }
+        }
+
+        function applyStyleToControls(style) {
+            if (!style || typeof style !== 'object') return;
+            if (style.position) els.position.value = style.position;
+            if (style.fontSize) els.fontSize.value = style.fontSize;
+            if (style.fontColor) els.fontColor.value = style.fontColor;
+            if (style.bgColor) els.bgColor.value = style.bgColor;
+            if (typeof style.bold === 'boolean') els.boldText.checked = style.bold;
+            if (style.fontFamily) {
+                const match = Array.from(els.fontFamily.options).find(option => {
+                    return option.value === style.fontFamily ||
+                        option.textContent.trim() === style.fontFamily ||
+                        option.dataset.family === style.fontFamily;
+                });
+                if (match) els.fontFamily.value = match.value;
+            }
+            readStyle();
+        }
+
+        function applySessionData(data) {
+            state.projectId = data.project_id || '';
+            state.projectName = (data.project && data.project.name) || '';
+            state.videoFile = null;
+            state.videoName = data.video_name || '';
+            state.serverVideoPath = data.server_video_path || '';
+            state.renderedVideoUrl = data.rendered_video_url || '';
+            state.currentTaskId = data.current_task_id || '';
+            state.currentTaskType = data.current_task_type || '';
+            state.subtitles = Array.isArray(data.subtitles) ? data.subtitles : [];
+
+            if (state.videoUrl) {
+                URL.revokeObjectURL(state.videoUrl);
+                state.videoUrl = '';
+            }
+            if (state.serverVideoPath) {
+                els.videoPreview.src = normalizePath(state.serverVideoPath);
+                els.videoPreview.hidden = false;
+                els.emptyPreview.hidden = true;
+            } else {
+                els.videoPreview.hidden = true;
+                els.emptyPreview.hidden = false;
+            }
+
+            applyStyleToControls(data.style || {});
+            renderSubtitles();
+            showExportActions(state.renderedVideoUrl);
+            els.downloadSrtBtn.disabled = state.subtitles.length === 0;
+            els.downloadAssBtn.disabled = state.subtitles.length === 0;
+            els.renderVideoBtn.disabled = state.subtitles.length === 0;
+            saveSessionRef();
+            updateProjectMeta();
+            renderSessionList();
+        }
+
+        let saveTimer = null;
+        async function saveSessionSnapshot(immediate = false) {
+            if (!state.projectId) return;
+            const run = async () => {
+                try {
+                    await apiJson(`/api/subtitle/session/${encodeURIComponent(state.projectId)}`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            server_video_path: state.serverVideoPath,
+                            video_name: state.videoName,
+                            subtitles: state.subtitles,
+                            style: state.style,
+                            rendered_video_url: state.renderedVideoUrl,
+                            language: els.language.value
+                        })
+                    });
+                    await loadSessions(false);
+                } catch (error) {
+                    console.warn('保存字幕工作区失败', error);
+                }
+            };
+            clearTimeout(saveTimer);
+            if (immediate) {
+                await run();
+            } else {
+                saveTimer = setTimeout(run, 600);
+            }
         }
 
         async function loadSubtitleStyles() {
@@ -711,7 +1290,7 @@
                     template: 'subtitle_tool'
                 })
             });
-            return res.data.id;
+            return res.data;
         }
 
         async function uploadVideo(file) {
@@ -742,6 +1321,43 @@
                     }
                 })
             });
+        }
+
+        async function persistSelectedVideo(file, manageButton = true) {
+            setBusy(true, '正在上传并创建字幕项目...');
+            if (manageButton) els.generateBtn.disabled = true;
+            try {
+                setStatus('正在创建字幕项目...');
+                setProgress(8, '创建项目');
+                const project = await createProject();
+                const projectId = project.id;
+                state.projectId = projectId;
+                state.projectName = project.name || '自动字幕项目';
+
+                setStatus('正在上传视频并保存记录...');
+                setProgress(30, '上传视频');
+                const uploadData = await uploadVideo(file);
+                state.serverVideoPath = uploadData.path || '';
+                state.videoName = file.name || uploadData.filename || '';
+                els.videoPreview.src = normalizePath(uploadData.path);
+                els.videoPreview.hidden = false;
+                els.emptyPreview.hidden = true;
+
+                setStatus('正在登记视频素材...');
+                setProgress(72, '登记素材');
+                await createMaterial(projectId, uploadData, file);
+                readStyle();
+                await saveSessionSnapshot(true);
+                await loadSessions(false);
+                saveSessionRef();
+                setStatus(`视频已上传并创建项目：${state.videoName}`, 'success');
+                setProgress(100, '上传完成，可生成字幕');
+                updateProjectMeta();
+                return projectId;
+            } finally {
+                if (manageButton) els.generateBtn.disabled = false;
+                setBusy(false);
+            }
         }
 
         async function generateSubtitles(projectId) {
@@ -814,11 +1430,22 @@
             }
         }
 
-        async function pollTask(taskId, onUpdate) {
+        async function pollTask(taskId, onUpdate, maxMs = 2 * 60 * 60 * 1000, shouldContinue = () => true) {
             let done = false;
+            const startedAt = Date.now();
             while (!done) {
+                if (!shouldContinue()) {
+                    return {cancelled: true};
+                }
+                const elapsed = Date.now() - startedAt;
+                if (elapsed > maxMs) {
+                    throw new Error('字幕识别超时（已等待2小时仍未完成），请尝试使用更小的模型或更短的视频。后台任务可能仍在运行，您可以在历史任务中查看状态。');
+                }
                 const task = await getTask(taskId);
                 const output = normalizeTaskOutput(task);
+                if (!shouldContinue()) {
+                    return {cancelled: true};
+                }
                 onUpdate(task, output);
                 if (task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled') {
                     done = true;
@@ -829,8 +1456,9 @@
         }
 
         async function handleGenerate() {
-            if (!state.videoFile) {
-                setStatus('请先选择一个视频文件。', 'error');
+            activeTaskPollToken++;
+            if (!state.projectId && !state.videoFile) {
+                setStatus('请先选择一个视频文件，或从左侧记录恢复一个项目。', 'error');
                 return;
             }
 
@@ -840,7 +1468,6 @@
             els.downloadAssBtn.disabled = true;
             els.renderVideoBtn.disabled = true;
             hideExportActions();
-            state.serverVideoPath = '';
             state.renderedVideoUrl = '';
             state.currentTaskId = '';
             state.subtitles = [];
@@ -848,22 +1475,20 @@
             setProgress(0, '准备开始');
 
             try {
-                setStatus('正在创建字幕项目...');
-                const projectId = await createProject();
-                state.projectId = projectId;
-
-                setStatus('正在上传视频...');
-                const uploadData = await uploadVideo(state.videoFile);
-                state.serverVideoPath = uploadData.path || '';
-                els.videoPreview.src = normalizePath(uploadData.path);
-
-                setStatus('正在登记视频素材...');
-                await createMaterial(projectId, uploadData, state.videoFile);
+                if (!state.projectId || !state.serverVideoPath) {
+                    if (!state.videoFile) {
+                        throw new Error('当前项目没有可用视频，请重新选择视频。');
+                    }
+                    await persistSelectedVideo(state.videoFile, false);
+                }
+                const projectId = state.projectId;
 
                 setStatus('已创建字幕识别任务，正在后台识别...');
                 const taskId = await createSubtitleGenerateTask(projectId);
                 state.currentTaskId = taskId;
+                state.currentTaskType = 'subtitle_generate';
                 setProgress(1, `任务已创建：${taskId}`);
+                await saveSessionSnapshot(true);
 
                 const result = await pollTask(taskId, (task, output) => {
                     const subtitles = Array.isArray(output.subtitles) ? output.subtitles : [];
@@ -876,6 +1501,8 @@
                                 text: String(item.text || '').trim()
                             }));
                         renderSubtitles();
+                        saveSessionRef();
+                        saveSessionSnapshot(false);
                     }
                     const msg = output.message || (task.status === 'running' ? '正在识别语音' : task.status);
                     setProgress(task.progress || 0, msg);
@@ -891,6 +1518,8 @@
                 els.downloadSrtBtn.disabled = state.subtitles.length === 0;
                 els.downloadAssBtn.disabled = state.subtitles.length === 0;
                 els.renderVideoBtn.disabled = state.subtitles.length === 0;
+                await saveSessionSnapshot(true);
+                await loadSessions(false);
             } catch (error) {
                 setStatus(error.message || '字幕生成失败。', 'error');
                 setProgress(0, error.message || '字幕生成失败');
@@ -900,6 +1529,7 @@
         }
 
         async function renderSubtitleVideo() {
+            activeTaskPollToken++;
             if (!state.subtitles.length) {
                 setStatus('请先生成字幕。', 'error');
                 return;
@@ -916,8 +1546,11 @@
             setProgress(0, '准备导出视频');
 
             try {
+                await saveSessionSnapshot(true);
                 const taskId = await createRenderVideoTask();
                 state.renderTaskId = taskId;
+                state.currentTaskId = taskId;
+                state.currentTaskType = 'subtitle_render_video';
                 const result = await pollTask(taskId, (task, output) => {
                     const msg = output.message || (task.status === 'running' ? '正在导出带字幕视频' : task.status);
                     setProgress(task.progress || 0, msg);
@@ -929,6 +1562,9 @@
                 }
 
                 state.renderedVideoUrl = result.output.output_url || '';
+                saveSessionRef();
+                await saveSessionSnapshot(true);
+                await loadSessions(false);
                 if (state.renderedVideoUrl) {
                     els.videoPreview.src = state.renderedVideoUrl;
                     els.videoPreview.hidden = false;
@@ -956,6 +1592,7 @@
             if (!state.subtitles.length) {
                 els.subtitleList.innerHTML = '<div class="subtitle-row"><span class="time-cell">--:--</span><span class="time-cell">--:--</span><input class="subtitle-text" value="等待生成字幕" disabled></div>';
                 updateActiveSubtitle();
+                updateProjectMeta();
                 return;
             }
 
@@ -977,6 +1614,7 @@
                 els.timeline.appendChild(segment);
             });
             updateActiveSubtitle();
+            updateProjectMeta();
         }
 
         function updateActiveSubtitle() {
@@ -1078,12 +1716,17 @@
                 .replace(/\r?\n/g, '\\N');
         }
 
-        els.videoFile.addEventListener('change', () => {
+        els.videoFile.addEventListener('change', async () => {
+            activeTaskPollToken++;
             const file = els.videoFile.files && els.videoFile.files[0];
             state.videoFile = file || null;
+            state.projectId = '';
+            state.projectName = '';
             state.serverVideoPath = '';
+            state.videoName = file ? file.name : '';
             state.renderedVideoUrl = '';
             state.currentTaskId = '';
+            state.currentTaskType = '';
             state.renderTaskId = '';
             state.subtitles = [];
             renderSubtitles();
@@ -1109,14 +1752,32 @@
             els.videoPreview.src = state.videoUrl;
             els.videoPreview.hidden = false;
             els.emptyPreview.hidden = true;
-            setStatus(`已选择：${file.name}`);
+            setStatus(`已选择：${file.name}，正在上传保存记录...`);
+            try {
+                await persistSelectedVideo(file);
+            } catch (error) {
+                setStatus(error.message || '视频上传保存失败。', 'error');
+                setProgress(0, error.message || '视频上传保存失败');
+            }
         });
 
         els.generateBtn.addEventListener('click', handleGenerate);
         els.renderVideoBtn.addEventListener('click', renderSubtitleVideo);
+        els.refreshSessionsBtn.addEventListener('click', async () => {
+            setStatus('正在刷新字幕项目记录。');
+            await loadSessions(false);
+            setStatus('字幕项目记录已刷新。', 'success');
+        });
+        els.sessionList.addEventListener('click', async event => {
+            const item = event.target.closest('.history-item');
+            if (!item || !item.dataset.projectId) return;
+            if (item.dataset.projectId === state.projectId && !els.busyOverlay.hidden) return;
+            await restoreSession(item.dataset.projectId);
+        });
         els.applyStyleBtn.addEventListener('click', () => {
             readStyle();
             updateActiveSubtitle();
+            saveSessionSnapshot(false);
             setStatus('已将样式应用到全部字幕预览和ASS导出。', 'success');
         });
         els.downloadSrtBtn.addEventListener('click', () => {
@@ -1139,18 +1800,37 @@
             if (state.subtitles[index]) {
                 state.subtitles[index].text = input.value;
                 updateActiveSubtitle();
+                saveSessionSnapshot(false);
             }
         });
         [els.position, els.fontFamily, els.fontSize, els.fontColor, els.bgColor, els.boldText].forEach(el => {
             el.addEventListener('input', () => {
                 readStyle();
                 updateActiveSubtitle();
+                saveSessionSnapshot(false);
             });
         });
 
-        loadSubtitleStyles().finally(() => {
+        loadSubtitleStyles().finally(async () => {
             readStyle();
-            renderSubtitles();
+            // 1. 先在 localStorage 中恢复样式
+            const ref = loadSessionRef();
+            if (ref && ref.style && typeof ref.style === 'object') {
+                state.style = ref.style;
+                applyStyleToControls(ref.style);
+            }
+            await loadSessions(false);
+            // 2. 优先恢复上次打开的项目，否则显示最近的项目记录
+            const projectId = ref && ref.projectId;
+            if (projectId) {
+                const ok = await restoreSession(projectId);
+                if (!ok) renderSubtitles();
+            } else if (state.sessions.length) {
+                await restoreSession(state.sessions[0].project_id);
+            } else {
+                renderSubtitles();
+            }
+            updateProjectMeta();
         });
     </script>
 </body>

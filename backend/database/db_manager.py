@@ -222,7 +222,21 @@ class DatabaseManager:
             else:
                 cursor.execute('SELECT * FROM projects ORDER BY created_at DESC')
             
-            return [dict(row) for row in cursor.fetchall()]
+            projects = [dict(row) for row in cursor.fetchall()]
+            for project in projects:
+                if project.get('config'):
+                    try:
+                        project['config'] = json.loads(project['config'])
+                    except Exception:
+                        project['config'] = {}
+                if project.get('result'):
+                    try:
+                        project['result'] = json.loads(project['result'])
+                    except Exception:
+                        project['result'] = {}
+                else:
+                    project['result'] = {}
+            return projects
         finally:
             conn.close()
     
@@ -250,6 +264,13 @@ class DatabaseManager:
                         project['config'] = json.loads(project['config'])
                     except Exception:
                         project['config'] = {}
+                if project.get('result'):
+                    try:
+                        project['result'] = json.loads(project['result'])
+                    except Exception:
+                        project['result'] = {}
+                else:
+                    project['result'] = {}
 
                 # 获取项目的素材
                 cursor.execute('SELECT * FROM materials WHERE project_id = ? ORDER BY created_at DESC', (project_id,))

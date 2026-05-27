@@ -166,10 +166,10 @@ class VideoProcessor:
                 text=True
             )
 
-            stdout, stderr = process.communicate()
+            stdout, stderr = process.communicate(timeout=600)
 
             if process.returncode == 0:
-                logger.info(f'✅ 变速剪切成功: {output_path}')
+                logger.info(f'\u2705 变速剪切成功: {output_path}')
                 return True
             else:
                 logger.error(f'❗ 变速剪切失败: {stderr}')
@@ -227,7 +227,7 @@ class VideoProcessor:
             )
 
             # 等待完成
-            stdout, stderr = process.communicate()
+            stdout, stderr = process.communicate(timeout=600)
 
             if process.returncode == 0:
                 logger.info(f'✅ 视频剪切成功: {output_path}')
@@ -286,7 +286,7 @@ class VideoProcessor:
                 text=True
             )
 
-            stdout, stderr = process.communicate()
+            stdout, stderr = process.communicate(timeout=600)
 
             # 删除临时文件列表
             list_file.unlink(missing_ok=True)
@@ -441,7 +441,7 @@ class VideoProcessor:
                 text=True
             )
 
-            stdout, stderr = process.communicate()
+            stdout, stderr = process.communicate(timeout=600)
 
             if process.returncode == 0:
                 logger.info(f'✅ 带转场视频合并成功: {output_path}')
@@ -499,7 +499,7 @@ class VideoProcessor:
                 text=True
             )
 
-            stdout, stderr = process.communicate()
+            stdout, stderr = process.communicate(timeout=600)
 
             if process.returncode == 0:
                 logger.info(f'✅ 视频转码成功: {output_path}')

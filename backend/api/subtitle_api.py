@@ -11,7 +11,7 @@ import shutil
 import subprocess
 import threading
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 from pathlib import Path
 from backend.config.paths import SUBTITLE_STYLES
@@ -26,6 +26,8 @@ except Exception:
 
 subtitle_bp = Blueprint('subtitle', __name__)
 logger = logging.getLogger(__name__)
+
+STALE_ACTIVE_TASK_AGE = timedelta(hours=12)
 
 
 @subtitle_bp.route('/api/subtitle/generate_legacy', methods=['POST'])
@@ -109,6 +111,144 @@ def _update_project_status(db_manager, project_id, status):
         logger.warning(f'项目状态更新失败: {project_id}, {status}, {e}')
 
 
+def _parse_json_dict(value):
+    """把数据库中的 JSON 字段安全解析成字典。"""
+    if isinstance(value, dict):
+        return value
+    if not value:
+        return {}
+    try:
+        parsed = json.loads(value)
+        return parsed if isinstance(parsed, dict) else {}
+    except Exception:
+        return {}
+
+
+def _normalize_subtitle_items(raw_subtitles):
+    """标准化用于持久化和恢复的字幕片段。"""
+    subtitles = []
+    if not isinstance(raw_subtitles, list):
+        return subtitles
+    for item in raw_subtitles:
+        if not isinstance(item, dict):
+            continue
+        text = str(item.get('text') or '').strip()
+        if not text:
+            continue
+        try:
+            start = max(0.0, float(item.get('start') or 0.0))
+            end = max(start + 0.1, float(item.get('end') or 0.0))
+        except Exception:
+            continue
+        subtitles.append({'start': start, 'end': end, 'text': text})
+    return subtitles
+
+
+def _normalize_subtitle_style(raw_style):
+    """标准化字幕样式，避免前端字段名差异导致恢复失败。"""
+    style = raw_style if isinstance(raw_style, dict) else {}
+    try:
+        font_size = int(float(style.get('fontSize') or style.get('font_size') or 28))
+    except Exception:
+        font_size = 28
+    font_size = max(14, min(72, font_size))
+    return {
+        'position': style.get('position') or 'bottom',
+        'fontFamily': style.get('fontFamily') or style.get('font_family') or DEFAULT_FONT_NAME,
+        'fontFile': style.get('fontFile') or style.get('font_file') or '',
+        'fontSize': font_size,
+        'fontColor': style.get('fontColor') or style.get('font_color') or '#ffffff',
+        'bgColor': style.get('bgColor') or style.get('bg_color') or '#000000',
+        'bold': bool(style.get('bold', True))
+    }
+
+
+def _get_project_result(project):
+    """读取项目 result 字段。"""
+    return _parse_json_dict((project or {}).get('result'))
+
+
+def _get_saved_subtitle_session(project):
+    """读取项目中保存的字幕编辑快照。"""
+    result = _get_project_result(project)
+    session = result.get('subtitle_session')
+    return session if isinstance(session, dict) else {}
+
+
+def _merge_subtitle_session(db_manager, project_id, updates):
+    """合并保存字幕工具会话快照。"""
+    if not db_manager or not project_id or not hasattr(db_manager, 'get_project'):
+        return
+    try:
+        project = db_manager.get_project(project_id)
+        if not project:
+            return
+        result = _get_project_result(project)
+        session = result.get('subtitle_session')
+        if not isinstance(session, dict):
+            session = {}
+        session.update(updates or {})
+        session['updated_at'] = datetime.now().isoformat(timespec='seconds')
+        result['subtitle_session'] = session
+        db_manager.update_project(project_id, {'result': result})
+    except Exception as e:
+        logger.warning(f'保存字幕会话失败: {project_id}, {e}')
+
+
+def _find_video_material(materials):
+    """从素材列表中选一个可预览的视频素材。"""
+    for material in materials or []:
+        if material.get('type') == 'video' and material.get('path'):
+            return material
+    return None
+
+
+def _latest_task(tasks, task_type=None, statuses=None):
+    """按创建时间倒序任务列表中查找最新任务。"""
+    status_set = set(statuses or [])
+    for task in tasks or []:
+        if task_type and task.get('type') != task_type:
+            continue
+        if status_set and task.get('status') not in status_set:
+            continue
+        return task
+    return None
+
+
+def _parse_datetime_value(value):
+    """解析数据库返回的时间字段。"""
+    if isinstance(value, datetime):
+        return value.replace(tzinfo=None)
+    if not value:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    try:
+        return datetime.fromisoformat(text.replace('Z', '+00:00')).replace(tzinfo=None)
+    except Exception:
+        return None
+
+
+def _is_recent_active_task(task):
+    """判断 pending/running 任务是否仍值得前端恢复轮询。"""
+    if not task or task.get('status') not in {'pending', 'running'}:
+        return False
+    last_time = (
+        _parse_datetime_value(task.get('updated_at')) or
+        _parse_datetime_value(task.get('started_at')) or
+        _parse_datetime_value(task.get('created_at'))
+    )
+    if not last_time:
+        return True
+    return datetime.now() - last_time <= STALE_ACTIVE_TASK_AGE
+
+
+def _task_output(task):
+    """读取任务输出。"""
+    return _parse_json_dict((task or {}).get('output_data'))
+
+
 def _extract_audio_from_project(data, db_manager):
     """根据项目素材定位或提取可供 ASR 使用的音频。"""
     project_id = data.get('project_id')
@@ -146,14 +286,18 @@ def _extract_audio_from_project(data, db_manager):
         '-vn', '-ac', '1', '-ar', '16000',
         '-f', 'wav', str(audio_path)
     ]
-    proc = subprocess.run(cmd, capture_output=True, text=True)
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+    except subprocess.TimeoutExpired:
+        logger.error('FFmpeg 提取音频超时（300s）')
+        raise TimeoutError('提取音频超时（300s），请检查视频文件是否正常')
     if proc.returncode != 0:
         logger.error(f'FFmpeg 提取音频失败: {proc.stderr[:500]}')
         raise RuntimeError('提取音频失败：视频编码不被支持或文件不可读取')
     return audio_path, True
 
 
-def _load_whisper_model(data):
+def _load_whisper_model(data, progress_callback=None):
     """加载 faster-whisper 模型，GPU 不可用时自动回退 CPU。"""
     try:
         from faster_whisper import WhisperModel
@@ -173,10 +317,22 @@ def _load_whisper_model(data):
         device = 'cuda'
         compute_type = compute_type or 'float16'
 
+    if progress_callback:
+        progress_callback(f'正在加载 {model_size} 模型（{device}/{compute_type}），首次使用可能需要下载...')
+
     try:
-        return WhisperModel(model_size, device=device, compute_type=compute_type)
-    except Exception:
-        return WhisperModel(model_size, device='cpu', compute_type='int8')
+        model = WhisperModel(model_size, device=device, compute_type=compute_type)
+        if progress_callback:
+            progress_callback(f'{model_size} 模型加载完成')
+        return model
+    except Exception as first_error:
+        logger.warning(f'无法以 {device}/{compute_type} 加载模型，退回 CPU: {first_error}')
+        if progress_callback:
+            progress_callback('GPU 加载失败，自动回退到 CPU 模式...')
+        try:
+            return WhisperModel(model_size, device='cpu', compute_type='int8')
+        except Exception:
+            raise RuntimeError(f'无法加载语音识别模型: {first_error}')
 
 
 def _format_ass_time(seconds):
@@ -541,7 +697,7 @@ def _render_video_with_pillow(video_path, output_path, subtitles, style, ffmpeg_
         '-movflags', '+faststart',
         str(output_path)
     ]
-    proc = subprocess.run(cmd, capture_output=True, text=True)
+    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
     try:
         temp_video.unlink(missing_ok=True)
     except Exception:
@@ -593,9 +749,11 @@ def create_generate_subtitle_handler(db_manager):
                     '-f', 'wav', str(audio_path)
                 ]
                 try:
-                    proc = subprocess.run(cmd, capture_output=True, text=True)
+                    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
                 except FileNotFoundError:
                     return jsonify({'code': 1, 'msg': 'FFmpeg 可执行文件不可用，请检查安装路径或先添加音频素材', 'data': None}), 500
+                except subprocess.TimeoutExpired:
+                    return jsonify({'code': 1, 'msg': '提取音频超时（300s），请检查视频文件是否正常', 'data': None}), 500
                 if proc.returncode != 0:
                     logger.error(f'FFmpeg 提取音频失败: {proc.stderr[:300]}')
                     return jsonify({'code': 1, 'msg': '提取音频失败：视频编码不被支持或文件不可读取', 'data': None}), 500
@@ -677,7 +835,12 @@ def _run_generate_subtitle_task(task_id, data, db_manager):
             'subtitles': subtitles
         })
 
-        model = _load_whisper_model(data)
+        import time
+        model = _load_whisper_model(data, progress_callback=lambda msg: (
+            _json_safe_task_update(db_manager, task_id, 'running', 18, {
+                'message': msg, 'subtitles': []
+            })
+        ))
         language = (data.get('language') or 'zh').split('-')[0]
         _json_safe_task_update(db_manager, task_id, 'running', 25, {
             'message': '模型加载完成，正在识别语音',
@@ -693,7 +856,20 @@ def _run_generate_subtitle_task(task_id, data, db_manager):
         )
         duration = max(1.0, float(getattr(info, 'duration', 0.0) or 0.0))
 
+        # 心跳看门狗：如果在 max(300, duration*2) 秒内没有新 segment，则判定为卡死
+        _stall_timeout = max(300.0, duration * 2.0)
+        _last_segment_time = time.time()
+
         for seg in segments_iter:
+            _now = time.time()
+            _elapsed = _now - _last_segment_time
+            if _elapsed > _stall_timeout:
+                raise TimeoutError(
+                    f'语音识别卡死在 {_elapsed:.0f}s 位置'
+                    f'（音频总长 {duration:.0f}s，超时阈值 {_stall_timeout:.0f}s）'
+                )
+            _last_segment_time = _now
+
             item = _format_segment(seg)
             if item.get('text'):
                 subtitles.append(item)
@@ -710,6 +886,11 @@ def _run_generate_subtitle_task(task_id, data, db_manager):
             'language': language
         }
         _json_safe_task_update(db_manager, task_id, 'completed', 100, output_data)
+        _merge_subtitle_session(db_manager, project_id, {
+            'subtitles': subtitles,
+            'language': language,
+            'last_generate_task_id': task_id
+        })
         _update_project_status(db_manager, project_id, 'completed')
     except Exception as e:
         logger.error(f'字幕识别任务失败: {task_id}, {e}', exc_info=True)
@@ -745,7 +926,7 @@ def create_generate_subtitle_task_handler(db_manager):
             threading.Thread(
                 target=_run_generate_subtitle_task,
                 args=(task_id, data, db_manager),
-                daemon=True
+                daemon=False
             ).start()
 
             return jsonify({
@@ -953,7 +1134,7 @@ def create_render_subtitle_video_handler(db_manager):
                     '-movflags', '+faststart',
                     str(output_path)
                 ]
-                proc = subprocess.run(cmd, capture_output=True, text=True)
+                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
                 if proc.returncode != 0:
                     logger.warning(f'FFmpeg subtitles 滤镜导出失败，改用逐帧渲染: {proc.stderr[-500:]}')
                     _render_video_with_pillow(video_path, output_path, subtitles, style, ffmpeg_path)
@@ -1023,7 +1204,7 @@ def _run_render_subtitle_video_task(task_id, data, db_manager):
                 '-c:a', 'copy', '-movflags', '+faststart',
                 str(output_path)
             ]
-            proc = subprocess.run(cmd, capture_output=True, text=True)
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
             if proc.returncode != 0:
                 logger.warning(f'FFmpeg subtitles 滤镜导出失败，改用逐帧渲染: {proc.stderr[-500:]}')
                 _render_video_with_pillow(video_path, output_path, subtitles, style, ffmpeg_path)
@@ -1038,6 +1219,13 @@ def _run_render_subtitle_video_task(task_id, data, db_manager):
             'subtitle_count': len(subtitles)
         }
         _json_safe_task_update(db_manager, task_id, 'completed', 100, output_data)
+        _merge_subtitle_session(db_manager, project_id, {
+            'subtitles': subtitles,
+            'style': _normalize_subtitle_style(style),
+            'rendered_video_url': output_data['output_url'],
+            'rendered_video_path': output_data['output_path'],
+            'last_render_task_id': task_id
+        })
         _update_project_status(db_manager, project_id, 'completed')
     except Exception as e:
         logger.error(f'带字幕视频导出任务失败: {task_id}, {e}', exc_info=True)
@@ -1069,7 +1257,7 @@ def create_render_subtitle_video_task_handler(db_manager):
             threading.Thread(
                 target=_run_render_subtitle_video_task,
                 args=(task_id, data, db_manager),
-                daemon=True
+                daemon=False
             ).start()
 
             return jsonify({
@@ -1084,10 +1272,177 @@ def create_render_subtitle_video_task_handler(db_manager):
     return render_subtitle_video_task
 
 
+def _build_session_payload(db_manager, project_id):
+    """组装字幕工具页面可恢复的完整工作区数据。"""
+    project = db_manager.get_project(project_id)
+    if not project:
+        return None
+
+    materials = project.get('materials') or db_manager.get_materials(project_id) or []
+    tasks = project.get('tasks') or db_manager.get_tasks(project_id) or []
+    video = _find_video_material(materials)
+    saved = _get_saved_subtitle_session(project)
+
+    completed_gen = _latest_task(tasks, 'subtitle_generate', ['completed'])
+    completed_render = _latest_task(tasks, 'subtitle_render_video', ['completed'])
+    active_task = _latest_task(tasks, statuses=['pending', 'running'])
+    if active_task and not _is_recent_active_task(active_task):
+        logger.info(f'忽略过期字幕任务恢复轮询: {active_task.get("id")}')
+        active_task = None
+
+    subtitles = _normalize_subtitle_items(saved.get('subtitles'))
+    if not subtitles and completed_gen:
+        subtitles = _normalize_subtitle_items(_task_output(completed_gen).get('subtitles') or [])
+
+    rendered_video_url = saved.get('rendered_video_url') or ''
+    if not rendered_video_url and completed_render:
+        rendered_video_url = _task_output(completed_render).get('output_url') or ''
+
+    style = _normalize_subtitle_style(saved.get('style') or {})
+
+    return {
+        'project_id': project_id,
+        'project': {
+            'id': project_id,
+            'name': project.get('name') or '自动字幕项目',
+            'status': project.get('status') or 'draft',
+            'created_at': project.get('created_at'),
+            'updated_at': project.get('updated_at')
+        },
+        'server_video_path': saved.get('server_video_path') or (video or {}).get('path') or '',
+        'video_name': (video or {}).get('name') or saved.get('video_name') or '',
+        'subtitles': subtitles,
+        'style': style,
+        'rendered_video_url': rendered_video_url,
+        'current_task_id': (active_task or {}).get('id') or '',
+        'current_task_type': (active_task or {}).get('type') or '',
+        'current_task_status': (active_task or {}).get('status') or '',
+        'current_task_progress': (active_task or {}).get('progress') or 0,
+        'tasks': tasks,
+        'task_count': len(tasks),
+        'subtitle_count': len(subtitles)
+    }
+
+
+def create_session_handler(db_manager):
+    """创建字幕工具会话恢复处理函数。"""
+    def get_session(project_id):
+        """根据项目ID从数据库恢复字幕工具会话数据。"""
+        if not db_manager:
+            return jsonify({'code': 1, 'msg': '数据库服务未就绪', 'data': None}), 500
+
+        try:
+            payload = _build_session_payload(db_manager, project_id)
+            if not payload:
+                return jsonify({'code': 1, 'msg': '项目不存在', 'data': None}), 404
+            return jsonify({'code': 0, 'msg': '会话数据恢复成功', 'data': payload})
+        except Exception as e:
+            logger.error(f'恢复字幕会话失败: {e}', exc_info=True)
+            return jsonify({'code': 1, 'msg': f'恢复会话失败: {e}', 'data': None}), 500
+
+    return get_session
+
+
+def create_session_save_handler(db_manager):
+    """创建字幕工具会话保存处理函数。"""
+    def save_session(project_id):
+        if not db_manager:
+            return jsonify({'code': 1, 'msg': '数据库服务未就绪', 'data': None}), 500
+        try:
+            data = request.get_json() or {}
+            updates = {}
+            if 'server_video_path' in data:
+                updates['server_video_path'] = data.get('server_video_path') or ''
+            if 'video_name' in data:
+                updates['video_name'] = data.get('video_name') or ''
+            if 'subtitles' in data:
+                updates['subtitles'] = _normalize_subtitle_items(data.get('subtitles') or [])
+            if 'style' in data:
+                updates['style'] = _normalize_subtitle_style(data.get('style') or {})
+            if 'rendered_video_url' in data:
+                updates['rendered_video_url'] = data.get('rendered_video_url') or ''
+            if 'language' in data:
+                updates['language'] = data.get('language') or ''
+            _merge_subtitle_session(db_manager, project_id, updates)
+            payload = _build_session_payload(db_manager, project_id)
+            return jsonify({'code': 0, 'msg': '字幕工作区已保存', 'data': payload})
+        except Exception as e:
+            logger.error(f'保存字幕会话失败: {e}', exc_info=True)
+            return jsonify({'code': 1, 'msg': f'保存会话失败: {e}', 'data': None}), 500
+
+    return save_session
+
+
+def create_session_list_handler(db_manager):
+    """创建字幕项目历史列表处理函数。"""
+    def list_sessions():
+        if not db_manager:
+            return jsonify({'code': 1, 'msg': '数据库服务未就绪', 'data': None}), 500
+        try:
+            limit = request.args.get('limit', default=30, type=int)
+            limit = max(1, min(limit or 30, 100))
+            projects = db_manager.get_all_projects('subtitle') or []
+            projects.sort(key=lambda item: item.get('updated_at') or item.get('created_at') or '', reverse=True)
+
+            sessions = []
+            for project in projects[:limit]:
+                payload = _build_session_payload(db_manager, project.get('id'))
+                if not payload:
+                    continue
+                active_label = ''
+                if payload.get('current_task_id'):
+                    active_label = payload.get('current_task_type') or '任务'
+                sessions.append({
+                    'project_id': payload['project_id'],
+                    'name': payload['project']['name'],
+                    'status': payload['project']['status'],
+                    'created_at': payload['project']['created_at'],
+                    'updated_at': payload['project']['updated_at'],
+                    'video_name': payload.get('video_name') or '未命名视频',
+                    'server_video_path': payload.get('server_video_path') or '',
+                    'subtitle_count': payload.get('subtitle_count') or 0,
+                    'task_count': payload.get('task_count') or 0,
+                    'rendered_video_url': payload.get('rendered_video_url') or '',
+                    'current_task_id': payload.get('current_task_id') or '',
+                    'current_task_type': payload.get('current_task_type') or '',
+                    'current_task_progress': payload.get('current_task_progress') or 0,
+                    'active_label': active_label
+                })
+
+            return jsonify({
+                'code': 0,
+                'msg': '获取字幕项目记录成功',
+                'data': {'sessions': sessions, 'total': len(sessions)}
+            })
+        except Exception as e:
+            logger.error(f'获取字幕项目记录失败: {e}', exc_info=True)
+            return jsonify({'code': 1, 'msg': f'获取字幕项目记录失败: {e}', 'data': None}), 500
+
+    return list_sessions
+
+
 def register_subtitle_routes(app, db_manager=None):
     """
     注册字幕API路由
     """
+    app.add_url_rule(
+        '/api/subtitle/sessions',
+        'subtitle_sessions',
+        create_session_list_handler(db_manager),
+        methods=['GET']
+    )
+    app.add_url_rule(
+        '/api/subtitle/session/<project_id>',
+        'subtitle_session',
+        create_session_handler(db_manager),
+        methods=['GET']
+    )
+    app.add_url_rule(
+        '/api/subtitle/session/<project_id>',
+        'subtitle_session_save',
+        create_session_save_handler(db_manager),
+        methods=['POST']
+    )
     app.add_url_rule(
         '/api/subtitle/generate',
         'subtitle_generate',
