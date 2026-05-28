@@ -12,6 +12,7 @@ from .commentary_api import register_commentary_routes
 from .remix_api import register_remix_routes
 from .voiceover_api import register_voiceover_routes
 from .voice_clone_api import register_voice_clone_routes
+from .broll_api import register_broll_routes
 
 __all__ = [
     'register_project_routes',
@@ -21,5 +22,6 @@ __all__ = [
     'register_commentary_routes',
     'register_remix_routes',
     'register_voiceover_routes',
-    'register_voice_clone_routes'
+    'register_voice_clone_routes',
+    'register_broll_routes'
 ]

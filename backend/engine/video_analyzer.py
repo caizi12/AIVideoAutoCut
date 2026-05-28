@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 """
-@Project: JJYB_AI智剪
+@Project: 海映智剪
 @File   : video_analyzer.py
 @Author : AI Assistant
 @Date   : 2025-11-10

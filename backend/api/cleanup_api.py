@@ -13,7 +13,7 @@ import time
 from typing import Dict, List, Tuple
 from flask import Blueprint, request, jsonify
 
-logger = logging.getLogger('JJYB_AI智剪')
+logger = logging.getLogger('海映智剪')
 
 cleanup_bp = Blueprint('cleanup', __name__)
 

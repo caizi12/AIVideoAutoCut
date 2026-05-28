@@ -8,7 +8,7 @@ import numpy as np
 from typing import List, Dict, Any, Optional
 import os
 
-logger = logging.getLogger('JJYB_AI智剪')
+logger = logging.getLogger('海映智剪')
 
 
 class BeatRemixEngine:

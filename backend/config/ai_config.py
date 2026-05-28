@@ -9,7 +9,7 @@ import logging
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, asdict
 
-logger = logging.getLogger('JJYB_AI智剪')
+logger = logging.getLogger('海映智剪')
 
 
 @dataclass

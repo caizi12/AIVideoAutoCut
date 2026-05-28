@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any
 from abc import ABC, abstractmethod
 
-logger = logging.getLogger('JJYB_AI智剪')
+logger = logging.getLogger('海映智剪')
 
 
 class BaseModelAdapter(ABC):

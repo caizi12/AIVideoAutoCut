@@ -1,4 +1,4 @@
-﻿# JJYB_AI智剪 - 完整开发文档 Part 2
+﻿# 海映智剪 - 完整开发文档 Part 2
 
 **业务逻辑层、数据库设计与 AI 模型汇总**
 
@@ -15,7 +15,7 @@ import sqlite3
 from pathlib import Path
 from contextlib import contextmanager
 
-DATABASE_PATH = Path(__file__).parent.parent / 'data' / 'JJYB_AI智剪.db'
+DATABASE_PATH = Path(__file__).parent.parent / 'data' / '海映智剪.db'
 
 @contextmanager
 def get_db_connection():
@@ -44,7 +44,7 @@ import os
 # 数据库 URL
 DATABASE_URL = os.getenv(
     'DATABASE_URL',
-    'postgresql://user:password@localhost:5432/JJYB_AI智剪'
+    'postgresql://user:password@localhost:5432/海映智剪'
 )
 
 # 创建引擎

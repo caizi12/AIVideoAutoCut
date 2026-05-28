@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 """
-@Project: JJYB_AI智剪
+@Project: 海映智剪
 @File   : subtitle_generator.py
 @Author : AI Assistant (基于NarratoAI学习)
 @Date   : 2025-11-10

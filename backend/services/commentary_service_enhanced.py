@@ -20,7 +20,7 @@ from backend.engine import VideoProcessor
 from backend.engine.video_composer import VideoComposer
 from backend.engine.subtitle_generator import SubtitleGenerator
 
-logger = logging.getLogger('JJYB_AI智剪')
+logger = logging.getLogger('海映智剪')
 
 
 class CommentaryServiceEnhanced:

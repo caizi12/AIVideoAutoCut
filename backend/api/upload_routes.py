@@ -8,7 +8,7 @@ import time
 from flask import request, jsonify
 from werkzeug.utils import secure_filename
 
-logger = logging.getLogger('JJYB_AI智剪')
+logger = logging.getLogger('海映智剪')
 
 # 允许的文件扩展名
 ALLOWED_VIDEO_EXTENSIONS = {'mp4', 'avi', 'mov', 'mkv', 'flv', 'wmv'}

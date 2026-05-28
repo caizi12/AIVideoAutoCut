@@ -13,7 +13,7 @@ from backend.database.db_manager import DatabaseManager
 
 
 def init_database():
-    """初始化数据库（使用统一的 JJYB_AI智剪 数据库结构）"""
+    """初始化数据库（使用统一的 海映智剪 数据库结构）"""
     print("\n[初始化] 正在创建数据库并同步表结构...")
 
     # 使用 DatabaseManager 统一管理数据库路径与表结构
@@ -41,7 +41,7 @@ def insert_sample_projects(db_manager):
         {
             'name': '示例原创解说项目',
             'type': 'commentary',
-            'description': '用于展示 JJYB_AI智剪 原创解说流程的示例项目',
+            'description': '用于展示 海映智剪 原创解说流程的示例项目',
             'template': 'commentary',
         },
         {
@@ -153,7 +153,7 @@ def insert_sample_materials(db_manager, projects):
 def main():
     """主函数"""
     print("=" * 60)
-    print("  JJYB_AI智剪 - 初始化测试数据")
+    print("  海映智剪 - 初始化测试数据")
     print("=" * 60)
     
     try:

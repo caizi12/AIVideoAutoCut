@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# JJYB_AI智剪服务启动脚本
+# 海映智剪服务启动脚本
 cd "$(dirname "$0")"
 
 if [ -x ".venv/bin/python" ]; then
@@ -14,7 +14,7 @@ export APP_HOST="${APP_HOST:-0.0.0.0}"
 export APP_PORT="${APP_PORT:-5000}"
 
 echo "========================================"
-echo "  Starting JJYB_AI智剪 Flask Server..."
+echo "  Starting 海映智剪 Flask Server..."
 echo "========================================"
 echo
 echo "[Start] Server starting..."

@@ -329,7 +329,7 @@ def print_summary(checks):
 
 def main():
     """主函数"""
-    print_header("JJYB_AI智剪 - 系统检查")
+    print_header("海映智剪 - 系统检查")
 
     checks = {
         'python': check_python_version(),

@@ -8,7 +8,7 @@ import os
 import uuid
 import json
 
-logger = logging.getLogger('JJYB_AI智剪')
+logger = logging.getLogger('海映智剪')
 
 
 def register_commentary_routes_enhanced(app, db_manager, task_service, socketio):

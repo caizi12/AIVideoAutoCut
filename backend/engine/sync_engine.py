@@ -7,7 +7,7 @@ import logging
 import numpy as np
 from typing import Dict, List, Any, Optional, Tuple
 
-logger = logging.getLogger('JJYB_AI智剪')
+logger = logging.getLogger('海映智剪')
 
 
 class SyncEngine:

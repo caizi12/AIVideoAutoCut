@@ -1,4 +1,4 @@
-# JJYB_AI智剪 - 完整开发文档 Part 3
+# 海映智剪 - 完整开发文档 Part 3
 
 **业务服务层、任务队列、部署打包与开发路线图**
 
@@ -699,7 +699,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='JJYB_AI智剪',
+    name='海映智剪',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -721,7 +721,7 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='JJYB_AI智剪',
+    name='海映智剪',
 )
 ```
 
@@ -741,7 +741,7 @@ import sys
 def build():
     """执行打包"""
     print('=' * 70)
-    print('开始打包 JJYB_AI智剪')
+    print('开始打包 海映智剪')
     print('=' * 70)
     
     # 清理旧的打包文件
@@ -891,9 +891,9 @@ CMD ["python", "app.py"]
 version: '3.8'
 
 services:
-  JJYB_AI智剪:
+  海映智剪:
     build: .
-    container_name: JJYB_AI智剪
+    container_name: 海映智剪
     ports:
       - "5000:5000"
     volumes:
@@ -902,7 +902,7 @@ services:
       - ./log:/app/log
       - ./data:/app/data
     environment:
-      - DATABASE_URL=postgresql://user:password@db:5432/JJYB_AI智剪
+      - DATABASE_URL=postgresql://user:password@db:5432/海映智剪
       - REDIS_URL=redis://redis:6379/0
     depends_on:
       - db
@@ -911,18 +911,18 @@ services:
   
   db:
     image: postgres:15-alpine
-    container_name: JJYB_AI智剪-db
+    container_name: 海映智剪-db
     environment:
       - POSTGRES_USER=user
       - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=JJYB_AI智剪
+      - POSTGRES_DB=海映智剪
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
   
   redis:
     image: redis:7-alpine
-    container_name: JJYB_AI智剪-redis
+    container_name: 海映智剪-redis
     volumes:
       - redis_data:/data
     restart: unless-stopped
@@ -971,7 +971,7 @@ preload_app = True
 
 ##### Nginx 配置
 ```nginx
-upstream JJYB_AI智剪 {
+upstream 海映智剪 {
     server 127.0.0.1:5000;
 }
 
@@ -982,7 +982,7 @@ server {
     client_max_body_size 16G;
     
     location / {
-        proxy_pass http://JJYB_AI智剪;
+        proxy_pass http://海映智剪;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -995,7 +995,7 @@ server {
     }
     
     location /static {
-        alias /path/to/JJYB_AI智剪/static;
+        alias /path/to/海映智剪/static;
         expires 30d;
     }
 }
@@ -1037,7 +1037,7 @@ gunicorn -c gunicorn_config.py app:app
 - Whisper ASR
 - SQLite 数据库
 
-### 12.2 增强版本 (v2.0) - AI 功能
+### 12.2 增强版本 (v0.1) - AI 功能
 
 **开发周期**：3-4 个月
 
@@ -1155,7 +1155,7 @@ const routes = [
 // Service Worker 缓存
 self.addEventListener('install', (event) => {
     event.waitUntil(
-        caches.open('JJYB_AI智剪-v1').then((cache) => {
+        caches.open('海映智剪-v1').then((cache) => {
             return cache.addAll([
                 '/',
                 '/static/js/common.js',
@@ -1234,7 +1234,7 @@ async def process_videos(video_paths):
 # Celery 异步任务
 from celery import Celery
 
-celery_app = Celery('JJYB_AI智剪', broker='redis://localhost:6379/0')
+celery_app = Celery('海映智剪', broker='redis://localhost:6379/0')
 
 @celery_app.task
 def process_video_task(video_path):
@@ -1391,6 +1391,6 @@ def test_video_processing_performance():
 - v2.0.0（计划发布）: 增强 AI 功能
 - v3.0.0（规划中）: 面向专业创作者的高级版本
 
-**维护者** JJYB_AI智剪 开发团队  
+**维护者** 海映智剪 开发团队  
 **许可证** Proprietary  
-**联系方式** [GitHub Issues](https://github.com/yourusername/JJYB_AI智剪/issues)
+**联系方式** [GitHub Issues](https://github.com/yourusername/海映智剪/issues)

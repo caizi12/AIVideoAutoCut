@@ -10,7 +10,7 @@ import logging
 from typing import List, Dict, Any
 import os
 
-logger = logging.getLogger('JJYB_AI智剪')
+logger = logging.getLogger('海映智剪')
 
 
 class VisionAnalyzer:

@@ -1,7 +1,7 @@
-# JJYB_AI智剪 配置文件
+# 海映智剪 配置文件
 
 app:
-  name: JJYB_AI智剪
+  name: 海映智剪
   version: 2.0.0
   debug: false
   host: 0.0.0.0

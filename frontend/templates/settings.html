@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}JJYB_AI智剪 - 设置{% endblock %}
+{% block title %}海映智剪 - 设置{% endblock %}
 
 {% block content %}
 <!-- 返回首页按钮 -->
@@ -353,6 +353,32 @@
             </div>
             <!-- 所有大模型配置卡片 -->
             <div style="display: grid; gap: 25px;">
+
+                <!-- 公开视频素材源 - 补画面功能使用 -->
+                <div style="background: linear-gradient(135deg, rgba(14,165,233,0.05) 0%, rgba(20,184,166,0.05) 100%); border-radius: 20px; padding: 30px; border: 2px solid rgba(20,184,166,0.16); box-shadow: 0 6px 25px rgba(20,184,166,0.08);">
+                    <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 25px; padding-bottom: 20px; border-bottom: 2px solid rgba(20,184,166,0.1);">
+                        <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #0ea5e9 0%, #14b8a6 100%); border-radius: 16px; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 20px rgba(14,165,233,0.25);">
+                            <span style="font-size: 30px;">🎞️</span>
+                        </div>
+                        <div style="flex: 1;">
+                            <h3 style="margin: 0 0 5px 0; font-size: 20px; font-weight: 800; color: rgba(255,255,255,0.95);">公开视频素材源</h3>
+                            <p style="margin: 0; font-size: 13px; color: rgba(255,255,255,0.6);">自动补画面默认使用 Wikimedia / Internet Archive / NASA，Pexels 和 Pixabay 可选配置</p>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div style="background: rgba(15,23,42,0.4); padding: 18px; border-radius: 12px; box-sizing: border-box;">
+                            <label style="display: block; font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.8); margin-bottom: 10px;">Pexels API Key</label>
+                            <input type="password" name="pexels_api_key" placeholder="输入 Pexels API Key..." style="width: 100%; padding: 14px; background: rgba(30,41,59,0.6); border: 1px solid rgba(20,184,166,0.3); border-radius: 10px; color: rgba(255,255,255,0.9); font-size: 13px; font-family: 'Courier New', monospace; box-sizing: border-box;">
+                        </div>
+                        <div style="background: rgba(15,23,42,0.4); padding: 18px; border-radius: 12px; box-sizing: border-box;">
+                            <label style="display: block; font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.8); margin-bottom: 10px;">Pixabay API Key</label>
+                            <input type="password" name="pixabay_api_key" placeholder="输入 Pixabay API Key..." style="width: 100%; padding: 14px; background: rgba(30,41,59,0.6); border: 1px solid rgba(20,184,166,0.3); border-radius: 10px; color: rgba(255,255,255,0.9); font-size: 13px; font-family: 'Courier New', monospace; box-sizing: border-box;">
+                        </div>
+                    </div>
+                    <button onclick="saveModelConfig('stock_video')" style="margin-top: 16px; padding: 14px 22px; background: linear-gradient(135deg, #0ea5e9 0%, #14b8a6 100%); color: white; border: none; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 15px rgba(14,165,233,0.25);">
+                        <i class="fa fa-save" style="margin-right: 6px;"></i>保存素材源配置
+                    </button>
+                </div>
 
                 <!-- 1. OpenAI GPT-4 - 绿色科技风 -->
                 <div style="background: linear-gradient(135deg, rgba(16,185,129,0.05) 0%, rgba(5,150,105,0.05) 100%); border-radius: 20px; padding: 30px; border: 2px solid rgba(16,185,129,0.15); box-shadow: 0 6px 25px rgba(16,185,129,0.08);">
@@ -1342,7 +1368,7 @@
                 </h3>
                 <div style="background: rgba(15,23,42,0.4); border-radius: 16px; padding: 20px; border: 1px solid rgba(16,185,129,0.15);">
                     <div style="display: flex; gap: 15px; align-items: center;">
-                        <input type="text" name="save-path" value="C:\Users\Videos\JJYB_AI智剪" readonly style="flex: 1; padding: 14px 18px; background: rgba(15,23,42,0.6); border: 1px solid rgba(16,185,129,0.3); border-radius: 12px; color: rgba(255,255,255,0.9); font-size: 14px;">
+                        <input type="text" name="save-path" value="C:\Users\Videos\海映智剪" readonly style="flex: 1; padding: 14px 18px; background: rgba(15,23,42,0.6); border: 1px solid rgba(16,185,129,0.3); border-radius: 12px; color: rgba(255,255,255,0.9); font-size: 14px;">
                         <button onclick="chooseSavePath()" style="padding: 14px 24px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; border-radius: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; transition: all 0.3s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
                             <i class="fa fa-folder-open" style="margin-right: 6px;"></i>选择路径
                         </button>
@@ -1943,7 +1969,7 @@
                 <div style="width: 120px; height: 120px; background: rgba(255,255,255,0.2); backdrop-filter: blur(10px); border-radius: 30px; display: flex; align-items: center; justify-content: center; margin: 0 auto 25px; box-shadow: 0 8px 25px rgba(0,0,0,0.2);">
                     <span style="font-size: 60px; font-weight: 900; color: white;">JJ</span>
                 </div>
-                <h1 style="margin: 0 0 10px 0; font-size: 36px; color: white; font-weight: 900;">JJYB_AI智剪</h1>
+                <h1 style="margin: 0 0 10px 0; font-size: 36px; color: white; font-weight: 900;">海映智剪</h1>
                 <p style="margin: 0 0 20px 0; font-size: 16px; color: rgba(255,255,255,0.9);">智能视频剪辑工具 · AI驱动创作</p>
                 <div style="display: inline-flex; gap: 20px; padding: 15px 30px; background: rgba(255,255,255,0.15); backdrop-filter: blur(10px); border-radius: 50px;">
                     <div style="text-align: center;">
@@ -2110,7 +2136,7 @@
 
             <!-- 版权信息 -->
             <div style="text-align: center; padding: 20px; color: rgba(255,255,255,0.5); font-size: 13px;">
-                <p style="margin: 0;">Copyright © 2025 JJYB_AI智剪. All rights reserved.</p>
+                <p style="margin: 0;">Copyright © 2025 海映智剪. All rights reserved.</p>
                 <p style="margin: 8px 0 0 0;">Made with ❤️ by JJYB Team</p>
             </div>
         </div>
@@ -2717,6 +2743,10 @@
                     // 12. Azure TTS
                     $('input[name="azure_tts_key"]').val(config.azure_tts_key || '');
                     $('select[name="azure_tts_region"]').val(config.azure_tts_region || 'eastasia');
+
+                    // 13. 公开视频素材源
+                    $('input[name="pexels_api_key"]').val(config.pexels_api_key || '');
+                    $('input[name="pixabay_api_key"]').val(config.pixabay_api_key || '');
 
                     // 重新渲染表单组件
                     form.render('select');
@@ -3898,6 +3928,11 @@
                     addIfValid(payloadSettings,'azure_tts_region',getVal('azure_tts_region'));
                     addIfValid(payloadConfig,'azure_tts_key',getVal('azure_tts_key'));
                     addIfValid(payloadConfig,'azure_tts_region',getVal('azure_tts_region'));
+                }else if(modelType==='stock_video'){
+                    addIfValid(payloadSettings,'pexels_api_key',getVal('pexels_api_key'));
+                    addIfValid(payloadSettings,'pixabay_api_key',getVal('pixabay_api_key'));
+                    addIfValid(payloadConfig,'pexels_api_key',getVal('pexels_api_key'));
+                    addIfValid(payloadConfig,'pixabay_api_key',getVal('pixabay_api_key'));
                 }
 
                 // 检查是否有配置
@@ -4108,6 +4143,8 @@
                 addIfValid(payloadSettings,'gpt4v_api_key',getVal('gpt4v_api_key'));
                 addIfValid(payloadSettings,'azure_tts_key',getVal('azure_tts_key'));
                 addIfValid(payloadSettings,'azure_tts_region',getVal('azure_tts_region'));
+                addIfValid(payloadSettings,'pexels_api_key',getVal('pexels_api_key'));
+                addIfValid(payloadSettings,'pixabay_api_key',getVal('pixabay_api_key'));
                 // 本地 Voice Clone 引擎配置
                 var enableVC = document.querySelector('[name="enable_voice_clone"]');
                 if(enableVC){ payloadSettings.enable_voice_clone = enableVC.checked; }
@@ -4138,6 +4175,8 @@
                 addIfValid(payloadConfig,'claude_vision_api_key',getVal('claude_vision_api_key'));
                 addIfValid(payloadConfig,'azure_tts_key',getVal('azure_tts_key'));
                 addIfValid(payloadConfig,'azure_tts_region',getVal('azure_tts_region'));
+                addIfValid(payloadConfig,'pexels_api_key',getVal('pexels_api_key'));
+                addIfValid(payloadConfig,'pixabay_api_key',getVal('pixabay_api_key'));
                 // Voice Clone 主要由 settings_api 写入 config，这里只在统一保存里透传一份，便于后端扩展
                 if(typeof payloadSettings.enable_voice_clone!=='undefined'){
                     payloadConfig.enable_voice_clone = payloadSettings.enable_voice_clone;
@@ -4582,7 +4621,7 @@
         // 清空配置（置空常用字段并保存）
         async function clearAllConfig(){
             Notification.confirm('确定要清空所有API配置吗？', async ()=>{
-                const fields=['openai_api_key','anthropic_api_key','gemini_api_key','kimi_api_key','qwen_api_key','ernie_api_key','ernie_secret_key','chatglm_api_key','deepseek_api_key','xfyun_appid','xfyun_api_key','xfyun_api_secret','claude_vision_api_key','gpt4v_api_key','azure_tts_key','azure_tts_region'];
+                const fields=['openai_api_key','anthropic_api_key','gemini_api_key','kimi_api_key','qwen_api_key','ernie_api_key','ernie_secret_key','chatglm_api_key','deepseek_api_key','xfyun_appid','xfyun_api_key','xfyun_api_secret','claude_vision_api_key','gpt4v_api_key','azure_tts_key','azure_tts_region','pexels_api_key','pixabay_api_key'];
                 const payload={}; fields.forEach(k=>payload[k]='');
                 const loading = layer.msg('正在清空配置...', {icon:16,time:0,shade:0.2});
                 try{
@@ -4664,7 +4703,7 @@
         function openAboutDialog() {
             layer.open({
                 type: 1,
-                title: '关于JJYB_AI智剪',
+                title: '关于海映智剪',
                 area: ['600px', '400px'],
                 content: `
                     <div class="layui-card">
@@ -4673,7 +4712,7 @@
                                 <div class="layui-btn layui-btn-primary layui-btn-radius" style="width: 100px; height: 100px; line-height: 100px; font-size: 40px; margin: 0 auto;">
                                     JJYB
                                 </div>
-                                <h3 class="layui-card-title mt-5">JJYB_AI智剪 v2.0.0</h3>
+                                <h3 class="layui-card-title mt-5">海映智剪 v0.1.0</h3>
                                 <p class="layui-card-subtitle">智能视频剪辑工具</p>
                                 <div class="layui-elem-quote mt-5">
                                     <p>基于AI技术的智能视频剪辑工具，让视频创作更简单高效</p>

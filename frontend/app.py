@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-JJYB_AI智剪 v2.0 - 智能视频剪辑工具
+海映智剪 v0.1 - 智能视频剪辑工具
 主应用入口文件 - 完整详细版
 包含所有功能的完整实现：
 - 完整的DatabaseManager类（300+行）
@@ -108,7 +108,7 @@ logging.basicConfig(
     ]
 )
 
-logger = logging.getLogger('JJYB_AI智剪')
+logger = logging.getLogger('海映智剪')
 logger.info(logger_msg)
 
 # temp/outputs 根目录（优先使用 backend.config.paths.OUTPUTS_DIR）
@@ -963,6 +963,14 @@ if BACKEND_AVAILABLE:
         except Exception as e:
             logger.warning(f'⚠️ 字幕API路由注册失败: {e}')
 
+        # 注册字幕驱动自动补画面 API 路由
+        try:
+            from backend.api.broll_api import register_broll_routes
+            register_broll_routes(app, backend_db_manager, socketio)
+            logger.info('✅ 补画面API路由注册成功 (8个)')
+        except Exception as e:
+            logger.warning(f'⚠️ 补画面API路由注册失败: {e}')
+
         # 注册清理API路由
         try:
             from backend.api.cleanup_api import register_cleanup_routes
@@ -1492,7 +1500,7 @@ def start_desktop_app():
 
             # 创建窗口
             webview.create_window(
-                title='JJYB_AI智剪 v2.0',
+                title='海映智剪 v0.1',
                 url=f'http://{UI_HOST}:{APP_PORT}',
                 width=1400,
                 height=900,
@@ -2013,7 +2021,7 @@ def main():
     """主函数 - 完整实现"""
     try:
         logger.info('\n' + '='*70)
-        logger.info('🌟 JJYB_AI智剪 v2.0 - 智能视频剪辑工具')
+        logger.info('🌟 海映智剪 v0.1 - 智能视频剪辑工具')
         logger.info('='*70)
         logger.info(f'📅 启动时间: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
         logger.info(f'🐍 Python版本: {sys.version.split()[0]}')
@@ -2046,7 +2054,7 @@ if __name__ == '__main__':
     main()
 
 # ==================== 文件结束 ====================
-# JJYB_AI智剪 v2.0 - 完整详细版
+# 海映智剪 v0.1 - 完整详细版
 # 总代码行数: 1400+
 # 包含完整的DatabaseManager、所有API路由、任务处理、WebSocket和启动逻辑
 # 可以独立运行，也可以与backend模块集成使用
@@ -2470,7 +2478,7 @@ if not BACKEND_AVAILABLE:
             payload = {
                 'model': data.get('model') or 'deepseek-chat',
                 'messages': [
-                    { 'role': 'system', 'content': '你是 JJYB_AI智剪 的智能助手。' },
+                    { 'role': 'system', 'content': '你是 海映智剪 的智能助手。' },
                     { 'role': 'user', 'content': '请仅回复：OK' }
                 ],
                 'temperature': 0.2,
@@ -2723,7 +2731,7 @@ def api_llm_test():
         payload = {
             'model': model,
             'messages': [
-                {'role': 'system', 'content': '你是 JJYB_AI智剪 的智能助手。'},
+                {'role': 'system', 'content': '你是 海映智剪 的智能助手。'},
                 {'role': 'user', 'content': '请仅回复：OK'}
             ],
             'temperature': float(data.get('temperature') or 0.2),

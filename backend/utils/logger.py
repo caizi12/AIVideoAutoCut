@@ -7,7 +7,7 @@ import logging
 import os
 from datetime import datetime
 
-def setup_logger(name='JJYB_AI智剪', log_file=None, level=logging.INFO):
+def setup_logger(name='海映智剪', log_file=None, level=logging.INFO):
     """
     配置日志记录器
     
@@ -52,7 +52,7 @@ def setup_logger(name='JJYB_AI智剪', log_file=None, level=logging.INFO):
     
     return logger
 
-def get_logger(name='JJYB_AI智剪'):
+def get_logger(name='海映智剪'):
     """
     获取日志记录器
 

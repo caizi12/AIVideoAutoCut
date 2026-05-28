@@ -16,7 +16,7 @@ from backend.engine.script_generator import ScriptGenerator
 from backend.engine.tts_engine import TTSEngine
 from backend.engine.video_processor import VideoProcessor
 
-logger = logging.getLogger('JJYB_AI智剪')
+logger = logging.getLogger('海映智剪')
 
 
 class CommentaryService:

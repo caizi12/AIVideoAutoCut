@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>自动字幕 - JJYB_AI智剪</title>
+    <title>自动字幕 - 海映智剪</title>
     <style>
         * {
             box-sizing: border-box;
@@ -560,6 +560,135 @@
             opacity: 0.78;
         }
 
+        .broll-workspace {
+            margin: 0 20px 22px;
+            border-top: 1px solid #edf1f7;
+            padding-top: 16px;
+        }
+
+        .broll-toolbar {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(150px, 1fr));
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .broll-toolbar select {
+            width: 100%;
+            min-height: 38px;
+            border: 1px solid #d7ddea;
+            border-radius: 8px;
+            background: #ffffff;
+            padding: 7px 9px;
+            font-size: 13px;
+            color: #172033;
+        }
+
+        .broll-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+
+        .broll-status {
+            margin-bottom: 12px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            background: #f8fafc;
+            color: #475569;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+
+        .broll-status.error {
+            background: #fef2f2;
+            color: #991b1b;
+        }
+
+        .broll-status.success {
+            background: #ecfdf5;
+            color: #065f46;
+        }
+
+        .broll-shot-list {
+            display: grid;
+            gap: 10px;
+            max-height: 430px;
+            overflow-y: auto;
+        }
+
+        .broll-shot {
+            border: 1px solid #e3e8f3;
+            border-radius: 8px;
+            background: #ffffff;
+            padding: 12px;
+        }
+
+        .broll-shot-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            color: #1f2a44;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .broll-shot-text {
+            margin: 8px 0;
+            color: #334155;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .broll-shot-meta {
+            margin-bottom: 8px;
+            color: #64748b;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+
+        .broll-shot-controls {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto auto;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .broll-shot-controls select {
+            width: 100%;
+            min-height: 36px;
+            border: 1px solid #d7ddea;
+            border-radius: 7px;
+            background: #ffffff;
+            padding: 6px 8px;
+            font-size: 12px;
+            color: #172033;
+        }
+
+        .broll-check {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            color: #475569;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .broll-links {
+            margin-top: 8px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            font-size: 12px;
+        }
+
+        .broll-links a {
+            color: #2563eb;
+            text-decoration: none;
+            font-weight: 700;
+        }
+
         @media (max-width: 980px) {
             .workspace {
                 grid-template-columns: 1fr;
@@ -585,6 +714,11 @@
                 grid-template-columns: 70px 70px minmax(0, 1fr);
                 gap: 7px;
                 padding: 9px;
+            }
+
+            .broll-toolbar,
+            .broll-shot-controls {
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -726,6 +860,42 @@
             </div>
             <div id="timeline" class="timeline"></div>
             <div id="subtitleList" class="subtitle-list"></div>
+
+            <div class="result-header">
+                <h2 class="result-title">补画面</h2>
+                <span id="brollProviderStatus" class="panel-subtitle">素材源未检测</span>
+            </div>
+            <div class="broll-workspace">
+                <div class="broll-toolbar">
+                    <label>
+                        <span class="panel-subtitle">输出比例</span>
+                        <select id="brollAspectRatio">
+                            <option value="original">跟随原视频</option>
+                            <option value="16:9">16:9 横屏</option>
+                        </select>
+                    </label>
+                    <label>
+                        <span class="panel-subtitle">字幕模式</span>
+                        <select id="brollSubtitleMode">
+                            <option value="burned">默认烧录字幕</option>
+                            <option value="none">不烧录字幕</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="broll-actions">
+                    <button id="brollPlanBtn" class="btn btn-primary" type="button" disabled>生成补画面方案</button>
+                    <button id="brollSearchBtn" class="btn btn-secondary" type="button" disabled>搜索素材</button>
+                    <button id="brollDownloadBtn" class="btn btn-secondary" type="button" disabled>下载选中素材</button>
+                    <button id="brollComposeBtn" class="btn btn-primary" type="button" disabled>自动合成</button>
+                </div>
+                <div id="brollStatus" class="broll-status">生成字幕后可创建补画面方案。</div>
+                <div id="brollShotList" class="broll-shot-list"></div>
+                <div id="brollExportActions" class="export-actions" hidden>
+                    <a id="openBrollVideoLink" class="btn btn-ghost" href="#" target="_blank" rel="noopener">打开补画面视频</a>
+                    <a id="downloadBrollVideoLink" class="btn btn-secondary" href="#" download>下载补画面视频</a>
+                    <a id="brollManifestLink" class="btn btn-ghost" href="#" target="_blank" rel="noopener">素材来源清单</a>
+                </div>
+            </div>
         </section>
     </main>
     <div id="busyOverlay" class="busy-overlay" hidden>
@@ -790,6 +960,7 @@
                 if (!data) return false;
 
                 applySessionData(data);
+                await loadBrollSession(data.project_id || projectId);
 
                 if (state.subtitles.length > 0) {
                     setStatus(`已恢复 ${data.subtitles.length} 条字幕。`, 'success');
@@ -841,6 +1012,7 @@
                 if (!task || task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled') {
                     if (task && task.status === 'completed') {
                         const output = normalizeTaskOutput(task);
+                        applyBrollTaskOutput(output);
                         if (Array.isArray(output.subtitles) && output.subtitles.length > 0) {
                             state.subtitles = output.subtitles
                                 .filter(item => item && String(item.text || '').trim())
@@ -854,7 +1026,7 @@
                             els.downloadAssBtn.disabled = false;
                             els.renderVideoBtn.disabled = false;
                         }
-                        if (output.output_url) {
+                        if (output.output_url && !String(taskType || '').startsWith('broll_')) {
                             state.renderedVideoUrl = output.output_url;
                             showExportActions(output.output_url);
                         }
@@ -866,6 +1038,7 @@
                 setProgress(task.progress || 5, '后台任务同步中');
                 const result = await pollTask(taskId, (t, output) => {
                     if (!isCurrent()) return;
+                    applyBrollTaskOutput(output);
                     const subs = Array.isArray(output.subtitles) ? output.subtitles : [];
                     if (subs.length !== state.subtitles.length) {
                         state.subtitles = subs
@@ -883,11 +1056,14 @@
                 }, 2 * 60 * 60 * 1000, isCurrent);
                 if (!result || result.cancelled || !isCurrent()) return;
                 if (result.task.status === 'completed') {
-                    if (result.output.output_url) {
+                    applyBrollTaskOutput(result.output);
+                    if (result.output.output_url && !String(taskType || '').startsWith('broll_')) {
                         state.renderedVideoUrl = result.output.output_url;
                         showExportActions(state.renderedVideoUrl);
                         setStatus('带字幕视频导出完成，可打开或下载。', 'success');
                         setProgress(100, '带字幕视频导出完成');
+                    } else if (String(taskType || '').startsWith('broll_')) {
+                        setBrollStatus('补画面后台任务已完成。', 'success');
                     } else {
                         setStatus(`字幕生成完成，共 ${state.subtitles.length} 条。`, 'success');
                         setProgress(100, `字幕生成完成，共 ${state.subtitles.length} 条`);
@@ -916,6 +1092,8 @@
             currentTaskType: '',
             renderTaskId: '',
             subtitles: [],
+            brollSession: null,
+            brollProviders: [],
             style: {
                 position: 'bottom',
                 fontFamily: 'Microsoft YaHei',
@@ -960,12 +1138,30 @@
             subtitleOverlay: document.getElementById('subtitleOverlay'),
             subtitleList: document.getElementById('subtitleList'),
             subtitleCount: document.getElementById('subtitleCount'),
-            timeline: document.getElementById('timeline')
+            timeline: document.getElementById('timeline'),
+            brollProviderStatus: document.getElementById('brollProviderStatus'),
+            brollAspectRatio: document.getElementById('brollAspectRatio'),
+            brollSubtitleMode: document.getElementById('brollSubtitleMode'),
+            brollPlanBtn: document.getElementById('brollPlanBtn'),
+            brollSearchBtn: document.getElementById('brollSearchBtn'),
+            brollDownloadBtn: document.getElementById('brollDownloadBtn'),
+            brollComposeBtn: document.getElementById('brollComposeBtn'),
+            brollStatus: document.getElementById('brollStatus'),
+            brollShotList: document.getElementById('brollShotList'),
+            brollExportActions: document.getElementById('brollExportActions'),
+            openBrollVideoLink: document.getElementById('openBrollVideoLink'),
+            downloadBrollVideoLink: document.getElementById('downloadBrollVideoLink'),
+            brollManifestLink: document.getElementById('brollManifestLink')
         };
 
         function setStatus(message, type = '') {
             els.status.textContent = message;
             els.status.className = type ? `status ${type}` : 'status';
+        }
+
+        function setBrollStatus(message, type = '') {
+            els.brollStatus.textContent = message;
+            els.brollStatus.className = type ? `broll-status ${type}` : 'broll-status';
         }
 
         function setBusy(active, message = '正在处理...', onCancel = null) {
@@ -995,6 +1191,29 @@
             els.openVideoLink.href = videoUrl;
             els.downloadVideoLink.href = videoUrl;
             els.exportActions.hidden = false;
+        }
+
+        function hideBrollExportActions() {
+            els.brollExportActions.hidden = true;
+            els.openBrollVideoLink.href = '#';
+            els.downloadBrollVideoLink.href = '#';
+            els.brollManifestLink.href = '#';
+        }
+
+        function showBrollExportActions(session) {
+            const videoUrl = session && session.rendered_video_url;
+            const manifestUrl = session && session.license_manifest_url;
+            if (!videoUrl && !manifestUrl) {
+                hideBrollExportActions();
+                return;
+            }
+            els.openBrollVideoLink.href = videoUrl || '#';
+            els.downloadBrollVideoLink.href = videoUrl || '#';
+            els.brollManifestLink.href = manifestUrl || '#';
+            els.openBrollVideoLink.hidden = !videoUrl;
+            els.downloadBrollVideoLink.hidden = !videoUrl;
+            els.brollManifestLink.hidden = !manifestUrl;
+            els.brollExportActions.hidden = false;
         }
 
         function escapeHtml(value) {
@@ -1225,7 +1444,141 @@
             renderSessionList();
         }
 
+        function defaultBrollSession() {
+            return {
+                version: 1,
+                source_project_id: state.projectId || '',
+                source_video_path: state.serverVideoPath || '',
+                audio_mode: 'keep_original',
+                subtitle_mode: 'burned',
+                aspect_ratio: 'original',
+                providers: ['wikimedia', 'internet_archive', 'nasa', 'pexels', 'pixabay'],
+                shots: [],
+                rendered_video_url: '',
+                license_manifest_url: '',
+                updated_at: ''
+            };
+        }
+
+        async function loadBrollProviders() {
+            try {
+                const res = await apiJson('/api/broll/providers', {method: 'GET'});
+                const data = res.data || {};
+                state.brollProviders = data.providers || [];
+                const available = state.brollProviders.filter(item => item.available).map(item => item.name || item.provider);
+                if (available.length) {
+                    els.brollProviderStatus.textContent = `可用素材源：${available.join('、')}`;
+                } else {
+                    els.brollProviderStatus.textContent = '素材源不可用，请检查网络';
+                }
+            } catch (error) {
+                els.brollProviderStatus.textContent = '素材源状态获取失败';
+            }
+        }
+
+        async function loadBrollSession(projectId) {
+            if (!projectId) {
+                state.brollSession = defaultBrollSession();
+                renderBrollWorkspace();
+                return;
+            }
+            try {
+                const res = await apiJson(`/api/broll/session/${encodeURIComponent(projectId)}`, {method: 'GET'});
+                state.brollSession = res.data || defaultBrollSession();
+            } catch (error) {
+                console.warn('恢复补画面工作区失败', error);
+                state.brollSession = defaultBrollSession();
+            }
+            applyBrollControls();
+            renderBrollWorkspace();
+        }
+
+        async function saveBrollSessionSnapshot(immediate = false) {
+            if (!state.projectId || !state.brollSession) return;
+            const run = async () => {
+                try {
+                    state.brollSession.aspect_ratio = els.brollAspectRatio.value;
+                    state.brollSession.subtitle_mode = els.brollSubtitleMode.value;
+                    await apiJson(`/api/broll/session/${encodeURIComponent(state.projectId)}`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(state.brollSession)
+                    });
+                } catch (error) {
+                    console.warn('保存补画面工作区失败', error);
+                }
+            };
+            clearTimeout(brollSaveTimer);
+            if (immediate) {
+                await run();
+            } else {
+                brollSaveTimer = setTimeout(run, 600);
+            }
+        }
+
+        function applyBrollControls() {
+            const session = state.brollSession || defaultBrollSession();
+            els.brollAspectRatio.value = session.aspect_ratio || 'original';
+            els.brollSubtitleMode.value = session.subtitle_mode || 'burned';
+        }
+
+        function renderBrollWorkspace() {
+            const session = state.brollSession || defaultBrollSession();
+            const shots = Array.isArray(session.shots) ? session.shots : [];
+            const hasSubtitles = state.subtitles.length > 0;
+            const hasCandidates = shots.some(shot => Array.isArray(shot.candidates) && shot.candidates.length);
+            const hasDownloads = shots.some(shot => (shot.candidates || []).some(candidate => candidate.local_path));
+
+            els.brollPlanBtn.disabled = !state.projectId || !hasSubtitles;
+            els.brollSearchBtn.disabled = !state.projectId || shots.length === 0;
+            els.brollDownloadBtn.disabled = !state.projectId || !hasCandidates;
+            els.brollComposeBtn.disabled = !state.projectId || shots.length === 0;
+            if (shots.length === 0) {
+                els.brollShotList.innerHTML = '<div class="broll-status">暂无补画面方案。生成字幕后点击“生成补画面方案”。</div>';
+                setBrollStatus(hasSubtitles ? '可以生成补画面方案。' : '生成字幕后可创建补画面方案。');
+                hideBrollExportActions();
+                return;
+            }
+
+            setBrollStatus(`已生成 ${shots.length} 个镜头${hasCandidates ? '，可下载选中素材或继续替换候选。' : '，下一步搜索素材候选。'}`, hasDownloads ? 'success' : '');
+            els.brollShotList.innerHTML = '';
+            shots.forEach((shot, index) => {
+                const candidates = Array.isArray(shot.candidates) ? shot.candidates : [];
+                const selectedId = shot.selected_candidate_id || (candidates[0] && candidates[0].candidate_id) || '';
+                const selected = candidates.find(item => item.candidate_id === selectedId) || candidates[0] || null;
+                const row = document.createElement('div');
+                row.className = 'broll-shot';
+                row.innerHTML = `
+                    <div class="broll-shot-head">
+                        <span>${escapeHtml(shot.shot_id || `s${index + 1}`)} · ${formatClock(shot.start)}-${formatClock(shot.end)}</span>
+                        <span>${Number(shot.duration || 0).toFixed(1)}s</span>
+                    </div>
+                    <div class="broll-shot-text">${escapeHtml(shot.subtitle_text || '')}</div>
+                    <div class="broll-shot-meta">关键词：${escapeHtml((shot.keywords || []).join('、') || '未生成')} · 候选：${candidates.length}</div>
+                    <div class="broll-shot-controls">
+                        <select class="broll-candidate-select" data-index="${index}" ${candidates.length ? '' : 'disabled'}>
+                            ${candidates.length ? candidates.map(candidate => `
+                                <option value="${escapeHtml(candidate.candidate_id)}" ${candidate.candidate_id === selectedId ? 'selected' : ''}>
+                                    ${escapeHtml(candidate.provider)} · ${escapeHtml(candidate.author || '未知作者')} · ${candidate.width || 0}x${candidate.height || 0} · 评分 ${candidate.score || 0}${candidate.local_path ? ' · 已下载' : ''}
+                                </option>
+                            `).join('') : '<option value="">暂无候选</option>'}
+                        </select>
+                        <label class="broll-check"><input class="broll-lock" data-index="${index}" type="checkbox" ${shot.locked ? 'checked' : ''}>锁定</label>
+                        <label class="broll-check"><input class="broll-skip" data-index="${index}" type="checkbox" ${shot.skipped ? 'checked' : ''}>跳过</label>
+                    </div>
+                    <div class="broll-links">
+                        ${selected && selected.source_url ? `<a href="${escapeHtml(selected.source_url)}" target="_blank" rel="noopener">素材原页</a>` : ''}
+                        ${selected && selected.license_url ? `<a href="${escapeHtml(selected.license_url)}" target="_blank" rel="noopener">许可说明</a>` : ''}
+                        ${selected && selected.local_path ? `<span>本地：${escapeHtml(selected.local_path)}</span>` : ''}
+                    </div>
+                `;
+                els.brollShotList.appendChild(row);
+            });
+            showBrollExportActions(session);
+        }
+
         let saveTimer = null;
+        let brollSaveTimer = null;
         async function saveSessionSnapshot(immediate = false) {
             if (!state.projectId) return;
             const run = async () => {
@@ -1333,12 +1686,16 @@
                 const projectId = project.id;
                 state.projectId = projectId;
                 state.projectName = project.name || '自动字幕项目';
+                state.brollSession = defaultBrollSession();
 
                 setStatus('正在上传视频并保存记录...');
                 setProgress(30, '上传视频');
                 const uploadData = await uploadVideo(file);
                 state.serverVideoPath = uploadData.path || '';
                 state.videoName = file.name || uploadData.filename || '';
+                if (state.brollSession) {
+                    state.brollSession.source_video_path = state.serverVideoPath;
+                }
                 els.videoPreview.src = normalizePath(uploadData.path);
                 els.videoPreview.hidden = false;
                 els.emptyPreview.hidden = true;
@@ -1412,6 +1769,23 @@
             return res.data.task_id;
         }
 
+        async function createBrollTask(url) {
+            const res = await apiJson(url, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    project_id: state.projectId,
+                    source_video_path: state.serverVideoPath,
+                    subtitles: state.subtitles,
+                    style: state.style,
+                    aspect_ratio: els.brollAspectRatio.value,
+                    subtitle_mode: els.brollSubtitleMode.value,
+                    providers: ['wikimedia', 'internet_archive', 'nasa', 'pexels', 'pixabay']
+                })
+            });
+            return res.data.task_id;
+        }
+
         async function getTask(taskId) {
             const res = await apiJson(`/api/tasks/${encodeURIComponent(taskId)}`, {method: 'GET'});
             return res.data || {};
@@ -1452,6 +1826,74 @@
                     return {task, output};
                 }
                 await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+        }
+
+        function applyBrollTaskOutput(output) {
+            if (!output || typeof output !== 'object') return;
+            if (output.broll_session) {
+                state.brollSession = output.broll_session;
+                applyBrollControls();
+                renderBrollWorkspace();
+            }
+            if (output.output_url) {
+                state.brollSession = state.brollSession || defaultBrollSession();
+                state.brollSession.rendered_video_url = output.output_url;
+                if (output.license_manifest_url) {
+                    state.brollSession.license_manifest_url = output.license_manifest_url;
+                }
+                showBrollExportActions(state.brollSession);
+                els.videoPreview.src = output.output_url;
+                els.videoPreview.hidden = false;
+                els.emptyPreview.hidden = true;
+            }
+        }
+
+        async function runBrollTask(url, taskType, startedMessage, completedMessage) {
+            activeTaskPollToken++;
+            if (!state.projectId) {
+                setBrollStatus('请先选择或恢复字幕项目。', 'error');
+                return;
+            }
+            if (!state.subtitles.length) {
+                setBrollStatus('请先生成字幕，再使用补画面功能。', 'error');
+                return;
+            }
+            readStyle();
+            state.brollSession = state.brollSession || defaultBrollSession();
+            state.brollSession.aspect_ratio = els.brollAspectRatio.value;
+            state.brollSession.subtitle_mode = els.brollSubtitleMode.value;
+            setBrollStatus(startedMessage);
+            setProgress(0, startedMessage);
+            try {
+                await saveSessionSnapshot(true);
+                await saveBrollSessionSnapshot(true);
+                const taskId = await createBrollTask(url);
+                state.currentTaskId = taskId;
+                state.currentTaskType = taskType;
+                updateProjectMeta();
+                const result = await pollTask(taskId, (task, output) => {
+                    applyBrollTaskOutput(output);
+                    const msg = output.message || (task.status === 'running' ? startedMessage : task.status);
+                    setProgress(task.progress || 0, msg);
+                    setBrollStatus(msg, task.status === 'failed' ? 'error' : '');
+                }, 2 * 60 * 60 * 1000);
+                if (result.task.status === 'failed') {
+                    throw new Error(result.task.error_message || result.output.message || `${startedMessage}失败`);
+                }
+                applyBrollTaskOutput(result.output);
+                setBrollStatus(completedMessage, 'success');
+                setProgress(100, completedMessage);
+                await saveBrollSessionSnapshot(true);
+                await loadSessions(false);
+            } catch (error) {
+                setBrollStatus(error.message || `${startedMessage}失败。`, 'error');
+                setProgress(0, error.message || `${startedMessage}失败`);
+            } finally {
+                state.currentTaskId = '';
+                state.currentTaskType = '';
+                updateProjectMeta();
+                renderBrollWorkspace();
             }
         }
 
@@ -1593,6 +2035,7 @@
                 els.subtitleList.innerHTML = '<div class="subtitle-row"><span class="time-cell">--:--</span><span class="time-cell">--:--</span><input class="subtitle-text" value="等待生成字幕" disabled></div>';
                 updateActiveSubtitle();
                 updateProjectMeta();
+                renderBrollWorkspace();
                 return;
             }
 
@@ -1615,6 +2058,7 @@
             });
             updateActiveSubtitle();
             updateProjectMeta();
+            renderBrollWorkspace();
         }
 
         function updateActiveSubtitle() {
@@ -1729,11 +2173,13 @@
             state.currentTaskType = '';
             state.renderTaskId = '';
             state.subtitles = [];
+            state.brollSession = defaultBrollSession();
             renderSubtitles();
             els.downloadSrtBtn.disabled = true;
             els.downloadAssBtn.disabled = true;
             els.renderVideoBtn.disabled = true;
             hideExportActions();
+            hideBrollExportActions();
             setProgress(0, '暂无运行中的任务。');
 
             if (state.videoUrl) {
@@ -1763,6 +2209,28 @@
 
         els.generateBtn.addEventListener('click', handleGenerate);
         els.renderVideoBtn.addEventListener('click', renderSubtitleVideo);
+        els.brollPlanBtn.addEventListener('click', () => runBrollTask(
+            '/api/broll/plan-task',
+            'broll_plan',
+            '正在生成补画面方案',
+            '补画面方案已生成'
+        ));
+        els.brollSearchBtn.addEventListener('click', async () => {
+            await loadBrollProviders();
+            runBrollTask('/api/broll/search-task', 'broll_search', '正在搜索补画面素材', '素材候选搜索完成');
+        });
+        els.brollDownloadBtn.addEventListener('click', () => runBrollTask(
+            '/api/broll/download-task',
+            'broll_download',
+            '正在下载选中素材',
+            '选中素材下载完成'
+        ));
+        els.brollComposeBtn.addEventListener('click', () => runBrollTask(
+            '/api/broll/compose-task',
+            'broll_compose',
+            '正在合成补画面视频',
+            '补画面视频合成完成'
+        ));
         els.refreshSessionsBtn.addEventListener('click', async () => {
             setStatus('正在刷新字幕项目记录。');
             await loadSessions(false);
@@ -1803,6 +2271,36 @@
                 saveSessionSnapshot(false);
             }
         });
+        els.brollShotList.addEventListener('change', event => {
+            if (!state.brollSession || !Array.isArray(state.brollSession.shots)) return;
+            const select = event.target.closest('.broll-candidate-select');
+            const lock = event.target.closest('.broll-lock');
+            const skip = event.target.closest('.broll-skip');
+            const target = select || lock || skip;
+            if (!target || target.dataset.index === undefined) return;
+            const index = Number(target.dataset.index);
+            const shot = state.brollSession.shots[index];
+            if (!shot) return;
+            if (select) {
+                shot.selected_candidate_id = select.value || '';
+            }
+            if (lock) {
+                shot.locked = lock.checked;
+            }
+            if (skip) {
+                shot.skipped = skip.checked;
+            }
+            renderBrollWorkspace();
+            saveBrollSessionSnapshot(false);
+        });
+        [els.brollAspectRatio, els.brollSubtitleMode].forEach(el => {
+            el.addEventListener('change', () => {
+                state.brollSession = state.brollSession || defaultBrollSession();
+                state.brollSession.aspect_ratio = els.brollAspectRatio.value;
+                state.brollSession.subtitle_mode = els.brollSubtitleMode.value;
+                saveBrollSessionSnapshot(false);
+            });
+        });
         [els.position, els.fontFamily, els.fontSize, els.fontColor, els.bgColor, els.boldText].forEach(el => {
             el.addEventListener('input', () => {
                 readStyle();
@@ -1813,6 +2311,9 @@
 
         loadSubtitleStyles().finally(async () => {
             readStyle();
+            state.brollSession = defaultBrollSession();
+            renderBrollWorkspace();
+            await loadBrollProviders();
             // 1. 先在 localStorage 中恢复样式
             const ref = loadSessionRef();
             if (ref && ref.style && typeof ref.style === 'object') {

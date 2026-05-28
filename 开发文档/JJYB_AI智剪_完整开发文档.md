@@ -1,8 +1,8 @@
-﻿# JJYB_AI智剪 - 完整开发文档
+﻿# 海映智剪 - 完整开发文档
 
 **版本**: 2.0  
 **更新日期**: 2025-11-08  
-**目标**: 系统性说明 JJYB_AI智剪 智能视频剪辑工具的架构设计与实现细节
+**目标**: 系统性说明 海映智剪 智能视频剪辑工具的架构设计与实现细节
 
 ---
 
@@ -30,7 +30,7 @@
 
 ### 1.1 项目简介
 
-JJYB_AI智剪 是一款基于 AI 技术的桌面端智能视频剪辑工具，采用 **Flask + PyWebView** 架构，提供 Web 化的用户界面和本地运行的后端服务。
+海映智剪 是一款基于 AI 技术的桌面端智能视频剪辑工具，采用 **Flask + PyWebView** 架构，提供 Web 化的用户界面和本地运行的后端服务。
 
 ### 1.2 核心卖点
 
@@ -502,7 +502,7 @@ frontend/
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}JJYB_AI智剪{% endblock %}</title>
+    <title>{% block title %}海映智剪{% endblock %}</title>
     
     <!-- CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='desktop/style/layui.css') }}">
@@ -528,13 +528,13 @@ frontend/
 #### 4.2.2 首页布局 (index.html)
 ```html
 {% extends "template.html" %}
-{% block title %}JJYB_AI智剪 - 智能视频剪辑工具{% endblock %}
+{% block title %}海映智剪 - 智能视频剪辑工具{% endblock %}
 
 {% block content %}
 <div class="layui-layout layui-layout-admin">
     <!-- 顶部导航 -->
     <div class="layui-header">
-        <div class="layui-logo">JJYB_AI智剪</div>
+        <div class="layui-logo">海映智剪</div>
         <ul class="layui-nav layui-layout-right">
             <li class="layui-nav-item">
                 <a id="vip_type">开源 + 赞助版</a>
@@ -604,7 +604,7 @@ frontend/
     
     <!-- 底部信息 -->
     <div class="layui-footer">
-        JJYB_AI智剪 v2.0 - 开源 + 赞助版
+        海映智剪 v0.1 - 开源 + 赞助版
     </div>
 </div>
 {% endblock %}
@@ -1195,7 +1195,7 @@ if (isMobile()) {
 ### 5.1 项目结构
 
 ```
-JJYB_AI智剪/
+海映智剪/
 ├── 启动应用.bat               # ⭐ 一键启动脚本（推荐入口）
 ├── check_system.py           # 🔍 系统检查与依赖检测
 ├── init_test_data.py         # 📊 初始化测试数据
@@ -1234,7 +1234,7 @@ JJYB_AI智剪/
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-JJYB_AI智剪 - 应用入口 main
+海映智剪 - 应用入口 main
 """
 
 import os
@@ -1421,7 +1421,7 @@ def start_webview():
     
     logger.info('创建应用窗口...')
     window = webview.create_window(
-        'JJYB_AI智剪 - 智能视频剪辑工具 v2.0',
+        '海映智剪 - 智能视频剪辑工具 v0.1',
         'http://127.0.0.1:5000/',
         width=1400,
         height=900,
@@ -1441,7 +1441,7 @@ def start_webview():
 if __name__ == '__main__':
     try:
         print('=' * 70)
-        print('         JJYB_AI智剪 - 智能视频剪辑工具 v2.0')
+        print('         海映智剪 - 智能视频剪辑工具 v0.1')
         print('=' * 70)
         print('[INFO] 正在初始化...')
         
@@ -2030,7 +2030,7 @@ def get_model_info(model_id):
 ## 继续阅读
 
 请参考以下后续文档：
-- `JJYB_AI智剪_完整开发文档_Part2.md` - 业务逻辑层与数据库设计
+- `海映智剪_完整开发文档_Part2.md` - 业务逻辑层与数据库设计
 ---
 *由于文档篇幅限制，本文件为完整开发文档的第一部分。后续部分将重点介绍：*
 - *业务逻辑层实现*
@@ -2045,9 +2045,9 @@ def get_model_info(model_id):
 ## 继续阅读
 
 请参考以下后续文档:
-- `JJYB_AI智剪_完整开发文档_Part2.md` - 业务逻辑层与数据库设计
-- `JJYB_AI智剪_完整开发文档_Part3.md` - AI 模型集成与视频处理引擎
-- `JJYB_AI智剪_完整开发文档_Part4.md` - 部署打包与性能优化（如有）
+- `海映智剪_完整开发文档_Part2.md` - 业务逻辑层与数据库设计
+- `海映智剪_完整开发文档_Part3.md` - AI 模型集成与视频处理引擎
+- `海映智剪_完整开发文档_Part4.md` - 部署打包与性能优化（如有）
 
 ---
 **本文档持续更新中...**

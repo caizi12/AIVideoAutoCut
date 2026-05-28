@@ -1,5 +1,5 @@
 /**
- * JJYB_AI智剪 - 通用JavaScript工具库
+ * 海映智剪 - 通用JavaScript工具库
  * 提供所有页面共用的功能
  */
 
@@ -618,4 +618,4 @@ window.FormValidator = FormValidator;
 window.Utils = Utils;
 window.simplifyBackendError = simplifyBackendError;
 
-console.log('✅ JJYB_AI智剪 通用工具库加载完成');
+console.log('✅ 海映智剪 通用工具库加载完成');

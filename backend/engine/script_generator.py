@@ -14,7 +14,7 @@ from typing import Dict, List, Any, Optional
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from prompts.narration_prompts import NarrationPrompts, generate_narration_prompt
 
-logger = logging.getLogger('JJYB_AI智剪')
+logger = logging.getLogger('海映智剪')
 
 
 class ScriptGenerator:

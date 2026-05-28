@@ -7,7 +7,7 @@ import logging
 from dataclasses import asdict
 from flask import request, jsonify
 
-logger = logging.getLogger('JJYB_AI智剪')
+logger = logging.getLogger('海映智剪')
 
 
 def register_config_routes(app):

@@ -8,7 +8,7 @@ import threading
 from typing import Dict, Any, Optional, Callable
 import json
 
-logger = logging.getLogger('JJYB_AI智剪')
+logger = logging.getLogger('海映智剪')
 
 
 class GlobalStateManager:
