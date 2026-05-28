@@ -20,7 +20,13 @@ from backend.services.stock_video import (
     NasaVideoProvider,
     PexelsProvider,
     PixabayProvider,
-    WikimediaCommonsProvider
+    WikimediaCommonsProvider,
+    VidevoProvider,
+    VideezyProvider,
+    MazwaiProvider,
+    LifeOfVidsProvider,
+    SplitshireProvider,
+    CoverrProvider
 )
 from backend.services.stock_video.base_provider import ProviderError
 from backend.utils.license_manifest import write_license_manifest
@@ -32,7 +38,7 @@ class BrollService:
     """补画面业务编排服务。"""
 
     DEFAULT_CONFIG = {
-        'providers': ['wikimedia', 'internet_archive', 'nasa', 'pexels', 'pixabay'],
+        'providers': ['wikimedia', 'internet_archive', 'nasa', 'videvo', 'videezy', 'mazwai', 'lifeofvids', 'splitshire', 'coverr', 'pexels', 'pixabay'],
         'default_quality': 'hd',
         'max_candidates_per_shot': 6,
         'max_download_mb_per_project': 2048,
@@ -575,6 +581,12 @@ class BrollService:
             'wikimedia': WikimediaCommonsProvider(timeout=timeout),
             'internet_archive': InternetArchiveProvider(timeout=timeout),
             'nasa': NasaVideoProvider(timeout=timeout),
+            'videvo': VidevoProvider(timeout=timeout),
+            'videezy': VideezyProvider(timeout=timeout),
+            'mazwai': MazwaiProvider(timeout=timeout),
+            'lifeofvids': LifeOfVidsProvider(timeout=timeout),
+            'splitshire': SplitshireProvider(timeout=timeout),
+            'coverr': CoverrProvider(timeout=timeout),
             'pexels': PexelsProvider(pexels_key, timeout=timeout),
             'pixabay': PixabayProvider(pixabay_key, timeout=timeout)
         }
