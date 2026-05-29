@@ -187,6 +187,10 @@ class BrollService:
                 'aspect_ratio': data.get('aspect_ratio') or 'original',
                 'subtitle_mode': data.get('subtitle_mode') or 'burned',
                 'providers': data.get('providers') or list(self.DEFAULT_CONFIG['providers']),
+                # 保存分段配置
+                'min_shot_duration': float(data.get('min_shot_duration', 3.0)),
+                'max_shot_duration': float(data.get('max_shot_duration', 8.0)),
+                'prefer_sentence_boundary': data.get('prefer_sentence_boundary', False),
                 'shots': self._build_shots(subtitles, data)
             })
             saved = self.save_session(project_id, session)

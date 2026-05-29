@@ -584,6 +584,26 @@
             color: #172033;
         }
 
+        /* 分段配置面板样式 */
+        .broll-template-btn {
+            transition: all 0.2s;
+        }
+
+        .broll-template-btn:hover {
+            background: #f3f4f6 !important;
+            border-color: #9ca3af !important;
+        }
+
+        .broll-template-btn.active {
+            background: #3b82f6 !important;
+            color: white !important;
+            border-color: #3b82f6 !important;
+        }
+
+        #brollConfigBody.expanded {
+            display: block !important;
+        }
+
         .broll-actions {
             display: flex;
             gap: 8px;
@@ -882,6 +902,51 @@
                         </select>
                     </label>
                 </div>
+
+                <!-- 分段配置面板 -->
+                <div class="broll-config-panel" style="margin: 12px 0; padding: 12px; background: #f8f9fa; border-radius: 6px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span class="panel-subtitle" style="font-weight: 600;">分段配置</span>
+                        <button id="brollConfigToggle" type="button" style="padding: 4px 12px; font-size: 12px; background: #fff; border: 1px solid #ddd; border-radius: 4px; cursor: pointer;">展开配置</button>
+                    </div>
+                    <div id="brollConfigBody" style="display: none; margin-top: 12px;">
+                        <!-- 配置模板 -->
+                        <div style="margin-bottom: 12px;">
+                            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                <button class="broll-template-btn active" data-template="default" type="button" style="padding: 6px 12px; font-size: 13px; background: #fff; border: 1px solid #ddd; border-radius: 4px; cursor: pointer;">默认</button>
+                                <button class="broll-template-btn" data-template="fast" type="button" style="padding: 6px 12px; font-size: 13px; background: #fff; border: 1px solid #ddd; border-radius: 4px; cursor: pointer;">快节奏</button>
+                                <button class="broll-template-btn" data-template="slow" type="button" style="padding: 6px 12px; font-size: 13px; background: #fff; border: 1px solid #ddd; border-radius: 4px; cursor: pointer;">慢节奏</button>
+                                <button class="broll-template-btn" data-template="medium" type="button" style="padding: 6px 12px; font-size: 13px; background: #fff; border: 1px solid #ddd; border-radius: 4px; cursor: pointer;">中等节奏</button>
+                                <button class="broll-template-btn" data-template="custom" type="button" style="padding: 6px 12px; font-size: 13px; background: #fff; border: 1px solid #ddd; border-radius: 4px; cursor: pointer;">自定义</button>
+                            </div>
+                        </div>
+                        <!-- 配置字段 -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                            <label style="display: flex; flex-direction: column; gap: 4px;">
+                                <span style="font-size: 13px; color: #666;">最小镜头时长（秒）</span>
+                                <input id="brollMinDuration" type="number" min="1" max="30" step="0.5" value="3.0" style="padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                            </label>
+                            <label style="display: flex; flex-direction: column; gap: 4px;">
+                                <span style="font-size: 13px; color: #666;">最大镜头时长（秒）</span>
+                                <input id="brollMaxDuration" type="number" min="3" max="60" step="0.5" value="8.0" style="padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                            </label>
+                        </div>
+                        <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                            <input id="brollPreferSentence" type="checkbox" style="width: 16px; height: 16px;">
+                            <span style="font-size: 13px; color: #666;">优先在句子边界分段</span>
+                        </label>
+                        <!-- 配置说明 -->
+                        <div style="margin-bottom: 12px; padding: 8px; background: #fffbeb; border-left: 3px solid #f59e0b; border-radius: 4px; font-size: 12px; color: #92400e;">
+                            <strong>提示：</strong>最小时长越大，镜头越少、越长；最大时长越小，镜头越多、越短。优先句子边界适用于有标点的字幕（ASR生成的字幕通常无标点，建议不勾选）。
+                        </div>
+                        <!-- 操作按钮 -->
+                        <div style="display: flex; gap: 8px;">
+                            <button id="brollApplyConfig" type="button" style="flex: 1; padding: 8px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px;">应用配置并重新分段</button>
+                            <button id="brollResetConfig" type="button" style="padding: 8px 16px; background: #fff; color: #666; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 13px;">重置</button>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="broll-actions">
                     <button id="brollPlanBtn" class="btn btn-primary" type="button" disabled>生成补画面方案</button>
                     <button id="brollSearchBtn" class="btn btn-secondary" type="button" disabled>搜索素材</button>
@@ -1151,7 +1216,15 @@
             brollExportActions: document.getElementById('brollExportActions'),
             openBrollVideoLink: document.getElementById('openBrollVideoLink'),
             downloadBrollVideoLink: document.getElementById('downloadBrollVideoLink'),
-            brollManifestLink: document.getElementById('brollManifestLink')
+            brollManifestLink: document.getElementById('brollManifestLink'),
+            // 分段配置元素
+            brollConfigToggle: document.getElementById('brollConfigToggle'),
+            brollConfigBody: document.getElementById('brollConfigBody'),
+            brollMinDuration: document.getElementById('brollMinDuration'),
+            brollMaxDuration: document.getElementById('brollMaxDuration'),
+            brollPreferSentence: document.getElementById('brollPreferSentence'),
+            brollApplyConfig: document.getElementById('brollApplyConfig'),
+            brollResetConfig: document.getElementById('brollResetConfig')
         };
 
         function setStatus(message, type = '') {
@@ -1493,12 +1566,98 @@
             renderBrollWorkspace();
         }
 
+        // 分段配置模板
+        const brollConfigTemplates = {
+            default: {
+                name: '默认',
+                min_shot_duration: 3.0,
+                max_shot_duration: 8.0,
+                prefer_sentence_boundary: false
+            },
+            fast: {
+                name: '快节奏',
+                min_shot_duration: 2.0,
+                max_shot_duration: 5.0,
+                prefer_sentence_boundary: false
+            },
+            slow: {
+                name: '慢节奏',
+                min_shot_duration: 5.0,
+                max_shot_duration: 12.0,
+                prefer_sentence_boundary: false
+            },
+            medium: {
+                name: '中等节奏',
+                min_shot_duration: 3.5,
+                max_shot_duration: 8.0,
+                prefer_sentence_boundary: false
+            },
+            custom: {
+                name: '自定义',
+                min_shot_duration: 3.0,
+                max_shot_duration: 8.0,
+                prefer_sentence_boundary: false
+            }
+        };
+
+        // 获取当前配置
+        function getBrollConfig() {
+            return {
+                min_shot_duration: parseFloat(els.brollMinDuration?.value) || 3.0,
+                max_shot_duration: parseFloat(els.brollMaxDuration?.value) || 8.0,
+                prefer_sentence_boundary: els.brollPreferSentence?.checked || false
+            };
+        }
+
+        // 检测当前配置属于哪个模板
+        function detectCustomConfig() {
+            if (!els.brollMinDuration || !els.brollMaxDuration || !els.brollPreferSentence) {
+                return 'default';
+            }
+
+            const current = getBrollConfig();
+
+            for (const [key, template] of Object.entries(brollConfigTemplates)) {
+                if (Math.abs(current.min_shot_duration - template.min_shot_duration) < 0.1 &&
+                    Math.abs(current.max_shot_duration - template.max_shot_duration) < 0.1 &&
+                    current.prefer_sentence_boundary === template.prefer_sentence_boundary) {
+                    return key;
+                }
+            }
+
+            return 'custom';
+        }
+
+        // 应用配置模板
+        function applyBrollTemplate(templateName) {
+            const template = brollConfigTemplates[templateName];
+            if (!template || !els.brollMinDuration || !els.brollMaxDuration || !els.brollPreferSentence) {
+                return;
+            }
+
+            els.brollMinDuration.value = template.min_shot_duration;
+            els.brollMaxDuration.value = template.max_shot_duration;
+            els.brollPreferSentence.checked = template.prefer_sentence_boundary;
+
+            // 更新按钮状态
+            document.querySelectorAll('.broll-template-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.template === templateName);
+            });
+        }
+
         async function saveBrollSessionSnapshot(immediate = false) {
             if (!state.projectId || !state.brollSession) return;
             const run = async () => {
                 try {
                     state.brollSession.aspect_ratio = els.brollAspectRatio.value;
                     state.brollSession.subtitle_mode = els.brollSubtitleMode.value;
+
+                    // 保存分段配置
+                    const config = getBrollConfig();
+                    state.brollSession.min_shot_duration = config.min_shot_duration;
+                    state.brollSession.max_shot_duration = config.max_shot_duration;
+                    state.brollSession.prefer_sentence_boundary = config.prefer_sentence_boundary;
+
                     await apiJson(`/api/broll/session/${encodeURIComponent(state.projectId)}`, {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
@@ -1520,6 +1679,23 @@
             const session = state.brollSession || defaultBrollSession();
             els.brollAspectRatio.value = session.aspect_ratio || 'original';
             els.brollSubtitleMode.value = session.subtitle_mode || 'burned';
+
+            // 恢复分段配置（添加安全检查）
+            if (els.brollMinDuration && session.min_shot_duration !== undefined) {
+                els.brollMinDuration.value = session.min_shot_duration;
+            }
+            if (els.brollMaxDuration && session.max_shot_duration !== undefined) {
+                els.brollMaxDuration.value = session.max_shot_duration;
+            }
+            if (els.brollPreferSentence && session.prefer_sentence_boundary !== undefined) {
+                els.brollPreferSentence.checked = session.prefer_sentence_boundary;
+            }
+
+            // 更新模板按钮状态
+            const detected = detectCustomConfig();
+            document.querySelectorAll('.broll-template-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.template === detected);
+            });
         }
 
         function renderBrollWorkspace() {
@@ -1770,6 +1946,9 @@
         }
 
         async function createBrollTask(url) {
+            // 获取当前配置
+            const config = getBrollConfig();
+
             const res = await apiJson(url, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -1780,7 +1959,11 @@
                     style: state.style,
                     aspect_ratio: els.brollAspectRatio.value,
                     subtitle_mode: els.brollSubtitleMode.value,
-                    providers: ['wikimedia', 'internet_archive', 'nasa', 'pexels', 'pixabay']
+                    providers: ['wikimedia', 'internet_archive', 'nasa', 'pexels', 'pixabay'],
+                    // 添加分段配置参数
+                    min_shot_duration: config.min_shot_duration,
+                    max_shot_duration: config.max_shot_duration,
+                    prefer_sentence_boundary: config.prefer_sentence_boundary
                 })
             });
             return res.data.task_id;
@@ -2206,6 +2389,73 @@
                 setProgress(0, error.message || '视频上传保存失败');
             }
         });
+
+        // 配置面板事件监听器（添加安全检查）
+        if (els.brollConfigToggle && els.brollConfigBody) {
+            els.brollConfigToggle.addEventListener('click', () => {
+                const isExpanded = els.brollConfigBody.classList.toggle('expanded');
+                els.brollConfigToggle.textContent = isExpanded ? '收起配置' : '展开配置';
+            });
+        }
+
+        // 模板按钮事件
+        document.querySelectorAll('.broll-template-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                applyBrollTemplate(btn.dataset.template);
+                saveBrollSessionSnapshot(false);  // 自动保存配置
+            });
+        });
+
+        // 配置输入变化时自动保存
+        if (els.brollMinDuration && els.brollMaxDuration && els.brollPreferSentence) {
+            [els.brollMinDuration, els.brollMaxDuration, els.brollPreferSentence].forEach(el => {
+                el.addEventListener('change', () => {
+                    const detected = detectCustomConfig();
+                    document.querySelectorAll('.broll-template-btn').forEach(btn => {
+                        btn.classList.toggle('active', btn.dataset.template === detected);
+                    });
+                    saveBrollSessionSnapshot(false);  // 自动保存配置
+                });
+            });
+        }
+
+        // 应用配置按钮
+        if (els.brollApplyConfig) {
+            els.brollApplyConfig.addEventListener('click', async () => {
+                if (!state.projectId) {
+                    setStatus('请先上传视频并生成字幕', 'error');
+                    return;
+                }
+
+                const config = getBrollConfig();
+
+                // 验证配置
+                if (config.min_shot_duration >= config.max_shot_duration) {
+                    setStatus('最小时长必须小于最大时长', 'error');
+                    return;
+                }
+
+                // 保存配置
+                await saveBrollSessionSnapshot(true);
+
+                // 应用配置并重新生成方案
+                await runBrollTask(
+                    '/api/broll/plan-task',
+                    'broll_plan',
+                    '正在应用配置并重新分段',
+                    '分段方案已更新'
+                );
+            });
+        }
+
+        // 重置配置按钮
+        if (els.brollResetConfig) {
+            els.brollResetConfig.addEventListener('click', () => {
+                applyBrollTemplate('default');
+                saveBrollSessionSnapshot(false);  // 自动保存配置
+                setStatus('已重置为默认配置', 'success');
+            });
+        }
 
         els.generateBtn.addEventListener('click', handleGenerate);
         els.renderVideoBtn.addEventListener('click', renderSubtitleVideo);
