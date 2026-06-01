@@ -1,4 +1,28 @@
-﻿logs/*
+# Python
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+
+# Playwright / browser debug output
+.playwright-cli/
+
+# Runtime data
+database/*.db
+database/*.sqlite
+database/*.sqlite3
+
+logs/*
 !logs/.gitkeep
 output/*
 !output/.gitkeep
@@ -6,4 +30,3 @@ uploads/*
 !uploads/.gitkeep
 temp/*
 !temp/.gitkeep
-
