@@ -40,7 +40,7 @@ class BrollService:
     DEFAULT_CONFIG = {
         'providers': ['wikimedia', 'internet_archive', 'nasa', 'videvo', 'videezy', 'mazwai', 'lifeofvids', 'splitshire', 'coverr', 'pexels', 'pixabay'],
         'default_quality': 'hd',
-        'max_candidates_per_shot': 6,
+        'max_candidates_per_shot': 3,
         'max_download_mb_per_project': 2048,
         'cache_days': 14,
         'request_timeout_seconds': 12,
@@ -50,6 +50,24 @@ class BrollService:
     STOP_WORDS = {
         '这个', '那个', '我们', '你们', '他们', '它们', '一个', '一种', '因为', '所以', '如果', '但是',
         '然后', '就是', '可以', '没有', '不是', '正在', '开始', '时候', '通过', '这些', '那些'
+    }
+
+    SAFE_CONTENT_BLACKLIST = {
+        '血', '血腥', '暴力', '尸体', '尸首', '枪击', '枪杀', '枪战', '砍杀', '斩首', '虐杀', '屠杀',
+        '爆炸', '炸弹', '火并', '火灾', '车祸', '伤亡', '死亡', '死者', '战场', '恐怖袭击', '武器',
+        'gore', 'bloody', 'blood', 'violence', 'kill', 'murder', 'dead', 'death', 'weapon', 'gun'
+    }
+
+    NEWS_TOPIC_HINTS = {
+        '政治': ['news footage', 'press conference', 'government meeting'],
+        '时政': ['news footage', 'press conference', 'government meeting'],
+        '外交': ['press conference', 'diplomatic meeting', 'news footage'],
+        '军事': ['news footage military', 'defense briefing', 'military parade'],
+        '国防': ['news footage military', 'defense briefing', 'military parade'],
+        '军队': ['news footage military', 'defense briefing', 'military parade'],
+        '会议': ['press conference', 'government meeting', 'news footage'],
+        '新闻': ['news footage', 'press conference', 'reporter'],
+        '发布会': ['press conference', 'news footage', 'reporter']
     }
 
     KEYWORD_TRANSLATIONS = {
@@ -190,7 +208,7 @@ class BrollService:
                 # 保存分段配置
                 'min_shot_duration': float(data.get('min_shot_duration', 3.0)),
                 'max_shot_duration': float(data.get('max_shot_duration', 8.0)),
-                'prefer_sentence_boundary': data.get('prefer_sentence_boundary', False),
+                'prefer_sentence_boundary': self._as_bool(data.get('prefer_sentence_boundary'), True),
                 'shots': self._build_shots(subtitles, data)
             })
             saved = self.save_session(project_id, session)
@@ -213,6 +231,11 @@ class BrollService:
             shots = session.get('shots') or []
             if not shots:
                 raise ValueError('请先生成补画面方案')
+            target_ids = self._resolve_search_targets(data, shots)
+            if target_ids:
+                shots = [shot for shot in shots if shot.get('shot_id') in target_ids]
+                if not shots:
+                    raise ValueError('未找到需要替换的镜头')
 
             providers = self._build_providers()
             enabled_names = data.get('providers') or session.get('providers') or list(self.DEFAULT_CONFIG['providers'])
@@ -220,11 +243,11 @@ class BrollService:
             if not enabled:
                 raise ValueError('没有可用素材源。免 Key 素材源不可用，或已被配置关闭；请检查网络后重试')
 
-            max_candidates = int(self._stock_config().get('max_candidates_per_shot') or 6)
+            max_candidates = max(1, min(3, int(self._stock_config().get('max_candidates_per_shot') or 3)))
             orientation = self._stock_config().get('prefer_orientation') or 'landscape'
 
             for index, shot in enumerate(shots, start=1):
-                if shot.get('locked') and shot.get('candidates'):
+                if not target_ids and shot.get('locked') and shot.get('candidates'):
                     continue
                 progress = 5 + int(index / max(1, len(shots)) * 85)
                 self._task_update(task_id, 'running', progress, {
@@ -233,14 +256,27 @@ class BrollService:
                 })
                 candidates = self._search_candidates_for_shot(shot, enabled, orientation, max_candidates)
                 shot['candidates'] = candidates
-                if candidates and not shot.get('selected_candidate_id'):
+                if candidates and (not shot.get('selected_candidate_id') or target_ids):
                     shot['selected_candidate_id'] = candidates[0]['candidate_id']
+                elif not candidates:
+                    shot['selected_candidate_id'] = ''
 
-            session['shots'] = shots
+            if target_ids:
+                all_shots = session.get('shots') or []
+                target_map = {shot.get('shot_id'): shot for shot in shots}
+                session['shots'] = [target_map.get(shot.get('shot_id'), shot) for shot in all_shots]
+            else:
+                session['shots'] = shots
             session['updated_at'] = datetime.now().isoformat(timespec='seconds')
             saved = self.save_session(project_id, session)
+            if not target_ids:
+                message = '素材候选搜索完成'
+            elif len(target_ids) == 1:
+                message = '当前镜头素材已更新'
+            else:
+                message = '选中镜头素材已更新'
             output = {
-                'message': '素材候选搜索完成',
+                'message': message,
                 'broll_session': saved,
                 'shots': saved.get('shots') or []
             }
@@ -308,20 +344,31 @@ class BrollService:
                 session['subtitle_mode'] = data.get('subtitle_mode')
             subtitles = self._get_subtitles(project, data)
             style = self._get_subtitle_style(project, data)
+            shots = session.get('shots') or []
+            if not shots:
+                raise ValueError('请先生成补画面方案并搜索素材')
 
             composer = BrollComposer()
 
             def progress(value, message):
-                self._task_update(task_id, 'running', value, {
+                mapped_value = 25 + int(max(0, min(100, value)) * 0.7)
+                self._task_update(task_id, 'running', mapped_value, {
                     'message': message,
                     'broll_session': session
                 })
 
             self._task_update(task_id, 'running', 5, {'message': '正在准备补画面合成'})
+            asset_result = self._ensure_compose_assets(project_id, shots, task_id)
+            if asset_result.get('usable', 0) <= 0:
+                raise ValueError('没有可用于合成的补画面素材，请先搜索素材并确认候选素材可下载')
+            session['shots'] = shots
+            session['updated_at'] = datetime.now().isoformat(timespec='seconds')
+            self.save_session(project_id, session)
+
             result = composer.compose(
                 project_id=project_id,
                 source_video_path=source_video_path,
-                shots=session.get('shots') or [],
+                shots=shots,
                 subtitles=subtitles,
                 style=style,
                 config={
@@ -334,10 +381,16 @@ class BrollService:
             manifest = write_license_manifest(project_id, session)
             session['license_manifest_url'] = manifest.get('url') or ''
             saved = self.save_session(project_id, session)
+            message = '补画面视频合成完成'
+            if asset_result.get('downloaded', 0) > 0:
+                message = f"补画面视频合成完成，已自动下载 {asset_result.get('downloaded')} 个素材"
+            if asset_result.get('failed', 0) > 0:
+                message = f"{message}；{asset_result.get('failed')} 个镜头素材下载失败，已使用原视频兜底"
             output = {
-                'message': '补画面视频合成完成',
+                'message': message,
                 'output_url': result.get('output_url') or '',
                 'output_path': result.get('output_path') or '',
+                'asset_result': asset_result,
                 'license_manifest_url': manifest.get('url') or '',
                 'broll_session': saved
             }
@@ -366,7 +419,7 @@ class BrollService:
         }
 
     def _build_shots(self, subtitles: List[Dict], data: Dict) -> List[Dict]:
-        merged = self._merge_short_subtitles(subtitles)
+        merged = self._nlp_segment_subtitles(subtitles, data)
         shots = []
         for index, item in enumerate(merged, start=1):
             keywords = self._extract_keywords(item.get('text') or '', data.get('topic') or '')
@@ -379,6 +432,8 @@ class BrollService:
                 'end': end,
                 'duration': round(max(0.1, end - start), 3),
                 'subtitle_text': item.get('text') or '',
+                'subtitle_indices': item.get('subtitle_indices') or [],
+                'theme': item.get('theme') or '、'.join(keywords[:4]),
                 'keywords': keywords,
                 'search_queries': search_queries,
                 'locked': False,
@@ -387,6 +442,226 @@ class BrollService:
                 'candidates': []
             })
         return shots
+
+    def _nlp_segment_subtitles(self, subtitles: List[Dict], data: Dict) -> List[Dict]:
+        """按完整语义把一条或多条字幕合并为补画面镜头。"""
+        normalized = self._normalize_subtitles(subtitles)
+        if not normalized:
+            return []
+
+        min_duration, max_duration, prefer_sentence = self._segment_config(data)
+        segments = []
+        current = None
+
+        for index, subtitle in enumerate(normalized):
+            if current is None:
+                current = self._new_segment(subtitle, index)
+            else:
+                self._append_subtitle_to_segment(current, subtitle, index)
+
+            next_subtitle = normalized[index + 1] if index + 1 < len(normalized) else None
+            if next_subtitle and self._should_close_segment(
+                current,
+                subtitle,
+                next_subtitle,
+                min_duration,
+                max_duration,
+                prefer_sentence
+            ):
+                self._finalize_segment(current)
+                segments.append(current)
+                current = None
+
+        if current:
+            self._finalize_segment(current)
+            segments.append(current)
+
+        return self._rebalance_short_segments(segments, min_duration, max_duration)
+
+    def _segment_config(self, data: Dict):
+        try:
+            min_duration = float((data or {}).get('min_shot_duration', 3.0))
+        except Exception:
+            min_duration = 3.0
+        try:
+            max_duration = float((data or {}).get('max_shot_duration', 8.0))
+        except Exception:
+            max_duration = 8.0
+
+        min_duration = max(0.5, min_duration)
+        max_duration = max(min_duration + 0.5, max_duration)
+        prefer_sentence = self._as_bool((data or {}).get('prefer_sentence_boundary'), True)
+        return min_duration, max_duration, prefer_sentence
+
+    @staticmethod
+    def _as_bool(value, default=False) -> bool:
+        if isinstance(value, bool):
+            return value
+        if value is None:
+            return default
+        if isinstance(value, str):
+            return value.strip().lower() in {'1', 'true', 'yes', 'on', '是', '开启'}
+        return bool(value)
+
+    def _new_segment(self, subtitle: Dict, index: int) -> Dict:
+        text = str(subtitle.get('text') or '').strip()
+        return {
+            'start': float(subtitle.get('start') or 0.0),
+            'end': float(subtitle.get('end') or 0.0),
+            'text': text,
+            'keywords': self._segment_keywords(text),
+            'subtitle_indices': [index]
+        }
+
+    def _append_subtitle_to_segment(self, segment: Dict, subtitle: Dict, index: int):
+        text = str(subtitle.get('text') or '').strip()
+        segment['end'] = float(subtitle.get('end') or segment.get('end') or 0.0)
+        segment['text'] = f"{segment.get('text') or ''} {text}".strip()
+        segment['keywords'] = self._merge_unique(segment.get('keywords') or [], self._segment_keywords(text), limit=10)
+        segment.setdefault('subtitle_indices', []).append(index)
+
+    def _should_close_segment(
+        self,
+        segment: Dict,
+        subtitle: Dict,
+        next_subtitle: Dict,
+        min_duration: float,
+        max_duration: float,
+        prefer_sentence: bool
+    ) -> bool:
+        duration = float(segment.get('end') or 0.0) - float(segment.get('start') or 0.0)
+        text = str(subtitle.get('text') or '').strip()
+        next_text = str(next_subtitle.get('text') or '').strip()
+        gap = float(next_subtitle.get('start') or 0.0) - float(segment.get('end') or 0.0)
+        sentence_end = self._is_sentence_boundary(text)
+        incomplete = self._ends_with_incomplete_phrase(segment.get('text') or '')
+        continuation = self._starts_with_continuation(next_text)
+        topic_change = self._is_topic_change(segment.get('keywords') or [], self._segment_keywords(next_text))
+
+        if duration >= max_duration:
+            return not incomplete or duration >= max_duration + 2.0
+        if duration < min_duration:
+            return False
+        if gap >= 1.5 and not incomplete:
+            return True
+
+        if prefer_sentence:
+            if sentence_end and not continuation and not incomplete:
+                return True
+            return topic_change and sentence_end and not continuation and not incomplete
+
+        if sentence_end and not continuation and not incomplete:
+            return True
+        if topic_change and not continuation and not incomplete:
+            return True
+
+        soft_duration = min(max_duration, max(min_duration, (min_duration + max_duration) / 2))
+        return duration >= soft_duration and not continuation and not incomplete
+
+    @staticmethod
+    def _is_sentence_boundary(text: str) -> bool:
+        return bool(re.search(r'[。！？!?;；.]["”’）】》]*$', (text or '').strip()))
+
+    @staticmethod
+    def _starts_with_continuation(text: str) -> bool:
+        normalized = (text or '').strip()
+        return normalized.startswith((
+            '然后', '接着', '同时', '而且', '并且', '以及', '还有',
+            '所以', '因此', '因为', '但是', '不过', '然而', '比如', '例如', '也就是',
+            '也就是说', '换句话说', '这时', '这就', '从而', '并', '和', '与', '或'
+        ))
+
+    @staticmethod
+    def _ends_with_incomplete_phrase(text: str) -> bool:
+        normalized = re.sub(r'\s+', '', text or '')
+        if not normalized:
+            return True
+        if re.search(r'[，,、：:（(]$', normalized):
+            return True
+        return normalized.endswith((
+            '的', '了', '和', '与', '及', '或', '在', '从', '到', '向', '给', '对',
+            '把', '被', '将', '为', '以', '用', '让', '使', '是', '有', '没有',
+            '一个', '一种', '这个', '那个', '这些', '那些', '通过', '关于'
+        ))
+
+    def _is_topic_change(self, old_keywords: List[str], new_keywords: List[str]) -> bool:
+        old_set = {item for item in old_keywords if item}
+        new_set = {item for item in new_keywords if item}
+        if not old_set or not new_set:
+            return False
+        overlap = old_set & new_set
+        if overlap:
+            return False
+        return len(overlap) / max(1, min(len(old_set), len(new_set))) < 0.25
+
+    def _segment_keywords(self, text: str) -> List[str]:
+        clean = re.sub(r'[^\u4e00-\u9fffA-Za-z0-9]+', ' ', text or '')
+        hits = []
+        for key in self.KEYWORD_TRANSLATIONS:
+            if key in clean:
+                hits.append(key)
+
+        chinese_text = ''.join(re.findall(r'[\u4e00-\u9fff]+', clean))
+        for size in (4, 3, 2):
+            for start in range(0, max(0, len(chinese_text) - size + 1)):
+                token = chinese_text[start:start + size]
+                if token and token not in self.STOP_WORDS:
+                    hits.append(token)
+
+        for token in re.findall(r'[A-Za-z][A-Za-z0-9-]{2,}', clean):
+            hits.append(token.lower())
+
+        return self._merge_unique([], hits, limit=12)
+
+    def _rebalance_short_segments(self, segments: List[Dict], min_duration: float, max_duration: float) -> List[Dict]:
+        balanced = []
+        for segment in segments:
+            self._finalize_segment(segment)
+            duration = float(segment.get('duration') or 0.0)
+            if balanced and duration < min_duration:
+                previous = balanced[-1]
+                combined_duration = float(segment.get('end') or 0.0) - float(previous.get('start') or 0.0)
+                source_complete = (
+                    self._is_sentence_boundary(segment.get('text') or '') and
+                    not self._starts_with_continuation(segment.get('text') or '')
+                )
+                previous_incomplete = self._ends_with_incomplete_phrase(previous.get('text') or '')
+                if (not source_complete or previous_incomplete or duration < 1.2) and combined_duration <= max_duration * 1.25:
+                    self._merge_segments(previous, segment)
+                    continue
+            balanced.append(segment)
+        return balanced
+
+    def _merge_segments(self, target: Dict, source: Dict):
+        target['end'] = source.get('end') or target.get('end')
+        target['text'] = f"{target.get('text') or ''} {source.get('text') or ''}".strip()
+        target['subtitle_indices'] = (target.get('subtitle_indices') or []) + (source.get('subtitle_indices') or [])
+        target['keywords'] = self._merge_unique(target.get('keywords') or [], source.get('keywords') or [], limit=10)
+        self._finalize_segment(target)
+
+    def _finalize_segment(self, segment: Dict):
+        start = float(segment.get('start') or 0.0)
+        end = max(start + 0.1, float(segment.get('end') or start + 0.1))
+        text = str(segment.get('text') or '').strip()
+        keywords = segment.get('keywords') or self._segment_keywords(text)
+        segment['start'] = start
+        segment['end'] = end
+        segment['text'] = text
+        segment['duration'] = round(end - start, 3)
+        segment['keywords'] = self._merge_unique([], keywords, limit=6) or ['场景', '画面']
+        segment['theme'] = '、'.join(segment['keywords'][:4])
+
+    @staticmethod
+    def _merge_unique(base: List[str], extra: List[str], limit: int = 6) -> List[str]:
+        result = []
+        for item in list(base or []) + list(extra or []):
+            value = str(item or '').strip()
+            if not value or value in result:
+                continue
+            result.append(value)
+            if len(result) >= limit:
+                break
+        return result
 
     def _merge_short_subtitles(self, subtitles: List[Dict]) -> List[Dict]:
         result = []
@@ -456,13 +731,15 @@ class BrollService:
     def _search_candidates_for_shot(self, shot: Dict, providers: List, orientation: str, max_candidates: int) -> List[Dict]:
         collected = []
         seen = set()
-        queries = shot.get('search_queries') or ['cinematic background']
+        queries = self._build_candidate_queries(shot)
         for query in queries[:2]:
             for provider in providers:
                 try:
                     for candidate in provider.search(query, orientation=orientation, per_page=max_candidates):
                         key = (candidate.get('provider'), candidate.get('source_id'))
                         if key in seen:
+                            continue
+                        if not self._is_safe_candidate(candidate):
                             continue
                         seen.add(key)
                         candidate['score'] = self._score_candidate(candidate, shot)
@@ -473,6 +750,88 @@ class BrollService:
                     logger.warning(f'素材搜索异常: {provider.provider_id}, {query}, {e}')
         collected.sort(key=lambda item: item.get('score') or 0, reverse=True)
         return collected[:max_candidates]
+
+    def _resolve_search_targets(self, data: Dict, shots: List[Dict]) -> List[str]:
+        requested = data.get('shot_id') or data.get('shot_ids') or []
+        if isinstance(requested, str):
+            requested = [requested]
+        if not isinstance(requested, list):
+            requested = []
+        target_ids = [str(item).strip() for item in requested if str(item).strip()]
+        if not target_ids:
+            return []
+        available = {shot.get('shot_id') for shot in shots if shot.get('shot_id')}
+        return [shot_id for shot_id in target_ids if shot_id in available]
+
+    def _build_candidate_queries(self, shot: Dict) -> List[str]:
+        queries = []
+        text = str(shot.get('subtitle_text') or '')
+        keywords = shot.get('keywords') or []
+        combined = ' '.join([text] + [str(item) for item in keywords if item]).strip()
+
+        if combined:
+            query = self._sanitize_query(combined)
+            if query and query not in queries:
+                queries.append(query)
+
+        if self._contains_news_topics(combined):
+            for hint in self._news_hints(combined):
+                if hint not in queries:
+                    queries.append(hint)
+
+        for query in shot.get('search_queries') or []:
+            if query and query not in queries:
+                queries.append(query)
+
+        fallback = 'news footage'
+        if fallback not in queries:
+            queries.append(fallback)
+        if 'cinematic background' not in queries:
+            queries.append('cinematic background')
+        return [query for query in queries if query]
+
+    def _sanitize_query(self, text: str) -> str:
+        pieces = []
+        for token in re.split(r'[\s,，。！？!?;；:/\\]+', text or ''):
+            value = token.strip()
+            if not value:
+                continue
+            if any(bad.lower() in value.lower() for bad in self.SAFE_CONTENT_BLACKLIST):
+                continue
+            pieces.append(value)
+        return ' '.join(pieces[:6]).strip()
+
+    def _contains_news_topics(self, text: str) -> bool:
+        keywords = {'政治', '时政', '外交', '军事', '国防', '军队', '会议', '新闻', '发布会'}
+        return any(word in (text or '') for word in keywords)
+
+    def _news_hints(self, text: str) -> List[str]:
+        hints = []
+        for keyword, values in self.NEWS_TOPIC_HINTS.items():
+            if keyword in (text or ''):
+                hints.extend(values)
+        return self._merge_unique([], hints, limit=4)
+
+    def _candidate_text(self, candidate: Dict) -> str:
+        parts = [
+            candidate.get('title') or '',
+            candidate.get('description') or '',
+            candidate.get('source_id') or '',
+            candidate.get('source_url') or '',
+            candidate.get('author') or '',
+            candidate.get('license') or '',
+            candidate.get('query') or ''
+        ]
+        return ' '.join(str(part) for part in parts if part)
+
+    def _is_safe_candidate(self, candidate: Dict) -> bool:
+        text = self._candidate_text(candidate).lower()
+        if not text:
+            return True
+        for bad in self.SAFE_CONTENT_BLACKLIST:
+            if bad.lower() in text:
+                return False
+        return True
 
     def _score_candidate(self, candidate: Dict, shot: Dict) -> int:
         score = 40
@@ -490,11 +849,79 @@ class BrollService:
             score += 10
         if width >= height:
             score += 8
-        if candidate.get('provider') in {'wikimedia', 'nasa'}:
+        if candidate.get('provider') in {'wikimedia', 'nasa', 'internet_archive'}:
             score += 6
         if candidate.get('provider') == 'pexels':
             score += 4
+        candidate_text = self._candidate_text(candidate).lower()
+        if any(keyword in candidate_text for keyword in ('news', 'report', 'press', 'government', 'military', 'defense')):
+            score += 8
         return score
+
+    def _ensure_compose_assets(self, project_id: str, shots: List[Dict], task_id: str = '') -> Dict:
+        """合成前确保已选候选素材有本地文件，避免自动合成退回原视频。"""
+        target_shots = [shot for shot in shots or [] if not shot.get('skipped') and (shot.get('candidates') or [])]
+        downloaded = 0
+        usable = 0
+        failed_shots = 0
+        failed_candidates = 0
+        for index, shot in enumerate(target_shots, start=1):
+            if task_id:
+                progress = 6 + int(index / max(1, len(target_shots)) * 18)
+                self._task_update(task_id, 'running', progress, {
+                    'message': f'正在下载合成素材 {index}/{len(target_shots)}',
+                    'shots': shots
+                })
+            prepared = False
+            for candidate in self._compose_candidate_options(shot):
+                if self._candidate_has_local_file(candidate):
+                    shot['selected_candidate_id'] = candidate.get('candidate_id') or shot.get('selected_candidate_id') or ''
+                    candidate.pop('download_error', None)
+                    usable += 1
+                    prepared = True
+                    break
+                try:
+                    local_path = self._download_candidate(candidate)
+                    candidate['local_path'] = local_path
+                    candidate.pop('download_error', None)
+                    shot['selected_candidate_id'] = candidate.get('candidate_id') or shot.get('selected_candidate_id') or ''
+                    self._register_material(project_id, shot, candidate, local_path)
+                    downloaded += 1
+                    usable += 1
+                    prepared = True
+                    break
+                except Exception as e:
+                    failed_candidates += 1
+                    candidate['download_error'] = str(e)
+                    logger.warning(
+                        f"合成前下载补画面素材失败: shot={shot.get('shot_id')}, "
+                        f"provider={candidate.get('provider')}, source_id={candidate.get('source_id')}, {e}"
+                    )
+            if not prepared:
+                failed_shots += 1
+        return {'downloaded': downloaded, 'usable': usable, 'failed': failed_shots, 'failed_candidates': failed_candidates}
+
+    def _compose_candidate_options(self, shot: Dict) -> List[Dict]:
+        candidates = list(shot.get('candidates') or [])
+        selected_id = shot.get('selected_candidate_id') or ''
+        ordered = []
+        if selected_id:
+            selected = next((candidate for candidate in candidates if candidate.get('candidate_id') == selected_id), None)
+            if selected:
+                ordered.append(selected)
+        for candidate in candidates:
+            if candidate not in ordered:
+                ordered.append(candidate)
+        return ordered
+
+    def _candidate_has_local_file(self, candidate: Dict) -> bool:
+        local_path = candidate.get('local_path') or ''
+        if not local_path:
+            return False
+        path = Path(str(local_path))
+        if not path.is_absolute():
+            path = PROJECT_ROOT / str(local_path).lstrip('/\\')
+        return path.exists() and path.stat().st_size > 0
 
     def _download_candidate(self, candidate: Dict) -> str:
         url = candidate.get('download_url') or ''

@@ -64,6 +64,8 @@ class InternetArchiveProvider(StockVideoProvider):
             'candidate_id': f'internet_archive_{identifier}',
             'provider': self.provider_id,
             'source_id': identifier,
+            'title': self._as_text(meta.get('title') or item.get('title') or identifier),
+            'description': self._as_text(meta.get('description') or meta.get('subject') or ''),
             'source_url': f'https://archive.org/details/{identifier}',
             'author': self._as_text(meta.get('creator') or item.get('creator') or ''),
             'license': license_name,

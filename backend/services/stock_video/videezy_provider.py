@@ -80,11 +80,14 @@ class VideezyProvider(StockVideoProvider):
                 # 提取视频ID和标题
                 path_parts = video_path.split('/')
                 video_id = path_parts[-1] if len(path_parts) > 0 else f'vid_{idx}'
+                title = video_id.replace('-', ' ').replace('_', ' ').title()
 
                 candidate = {
                     'candidate_id': f'videezy_{video_id}',
                     'provider': self.provider_id,
                     'source_id': video_id,
+                    'title': title,
+                    'description': title,
                     'source_url': video_url,
                     'author': 'Videezy Community',
                     'license': 'Creative Commons BY 3.0',

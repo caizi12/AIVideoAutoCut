@@ -670,7 +670,7 @@
 
         .broll-shot-controls {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) auto auto;
+            grid-template-columns: minmax(0, 1fr) auto auto auto auto;
             gap: 8px;
             align-items: center;
         }
@@ -692,6 +692,18 @@
             gap: 5px;
             color: #475569;
             font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .broll-shot-research {
+            min-height: 34px;
+            padding: 6px 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 7px;
+            background: #ffffff;
+            color: #1f2937;
+            font-size: 12px;
+            cursor: pointer;
             white-space: nowrap;
         }
 
@@ -932,12 +944,12 @@
                             </label>
                         </div>
                         <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-                            <input id="brollPreferSentence" type="checkbox" style="width: 16px; height: 16px;">
+                            <input id="brollPreferSentence" type="checkbox" checked style="width: 16px; height: 16px;">
                             <span style="font-size: 13px; color: #666;">优先在句子边界分段</span>
                         </label>
                         <!-- 配置说明 -->
                         <div style="margin-bottom: 12px; padding: 8px; background: #fffbeb; border-left: 3px solid #f59e0b; border-radius: 4px; font-size: 12px; color: #92400e;">
-                            <strong>提示：</strong>最小时长越大，镜头越少、越长；最大时长越小，镜头越多、越短。优先句子边界适用于有标点的字幕（ASR生成的字幕通常无标点，建议不勾选）。
+                            <strong>提示：</strong>最小时长越大，镜头越少、越长；最大时长越小，镜头越多、越短。优先句子边界会尽量保留完整表达；无标点字幕会结合最大时长和主题变化兜底分段。
                         </div>
                         <!-- 操作按钮 -->
                         <div style="display: flex; gap: 8px;">
@@ -950,6 +962,7 @@
                 <div class="broll-actions">
                     <button id="brollPlanBtn" class="btn btn-primary" type="button" disabled>生成补画面方案</button>
                     <button id="brollSearchBtn" class="btn btn-secondary" type="button" disabled>搜索素材</button>
+                    <button id="brollSearchSelectedBtn" class="btn btn-secondary" type="button" disabled title="重新搜索勾选镜头的 1-3 个候选素材">重搜选中</button>
                     <button id="brollDownloadBtn" class="btn btn-secondary" type="button" disabled>下载选中素材</button>
                     <button id="brollComposeBtn" class="btn btn-primary" type="button" disabled>自动合成</button>
                 </div>
@@ -1096,6 +1109,8 @@
                             showExportActions(output.output_url);
                         }
                     }
+                    state.currentTaskId = '';
+                    state.currentTaskType = '';
                     updateProjectMeta();
                     return;
                 }
@@ -1138,6 +1153,9 @@
                     els.renderVideoBtn.disabled = state.subtitles.length === 0;
                     await saveSessionSnapshot(true);
                     await loadSessions(false);
+                    state.currentTaskId = '';
+                    state.currentTaskType = '';
+                    updateProjectMeta();
                 }
             } catch (err) {
                 console.warn('恢复任务失败', err);
@@ -1159,6 +1177,7 @@
             subtitles: [],
             brollSession: null,
             brollProviders: [],
+            brollSelectedShotIds: new Set(),
             style: {
                 position: 'bottom',
                 fontFamily: 'Microsoft YaHei',
@@ -1209,6 +1228,7 @@
             brollSubtitleMode: document.getElementById('brollSubtitleMode'),
             brollPlanBtn: document.getElementById('brollPlanBtn'),
             brollSearchBtn: document.getElementById('brollSearchBtn'),
+            brollSearchSelectedBtn: document.getElementById('brollSearchSelectedBtn'),
             brollDownloadBtn: document.getElementById('brollDownloadBtn'),
             brollComposeBtn: document.getElementById('brollComposeBtn'),
             brollStatus: document.getElementById('brollStatus'),
@@ -1509,6 +1529,7 @@
             applyStyleToControls(data.style || {});
             renderSubtitles();
             showExportActions(state.renderedVideoUrl);
+            els.generateBtn.disabled = false;
             els.downloadSrtBtn.disabled = state.subtitles.length === 0;
             els.downloadAssBtn.disabled = state.subtitles.length === 0;
             els.renderVideoBtn.disabled = state.subtitles.length === 0;
@@ -1572,7 +1593,7 @@
                 name: '默认',
                 min_shot_duration: 3.0,
                 max_shot_duration: 8.0,
-                prefer_sentence_boundary: false
+                prefer_sentence_boundary: true
             },
             fast: {
                 name: '快节奏',
@@ -1584,19 +1605,19 @@
                 name: '慢节奏',
                 min_shot_duration: 5.0,
                 max_shot_duration: 12.0,
-                prefer_sentence_boundary: false
+                prefer_sentence_boundary: true
             },
             medium: {
                 name: '中等节奏',
                 min_shot_duration: 3.5,
                 max_shot_duration: 8.0,
-                prefer_sentence_boundary: false
+                prefer_sentence_boundary: true
             },
             custom: {
                 name: '自定义',
                 min_shot_duration: 3.0,
                 max_shot_duration: 8.0,
-                prefer_sentence_boundary: false
+                prefer_sentence_boundary: true
             }
         };
 
@@ -1647,21 +1668,22 @@
 
         async function saveBrollSessionSnapshot(immediate = false) {
             if (!state.projectId || !state.brollSession) return;
+            const projectId = state.projectId;
+            state.brollSession.aspect_ratio = els.brollAspectRatio.value;
+            state.brollSession.subtitle_mode = els.brollSubtitleMode.value;
+
+            // 保存分段配置
+            const config = getBrollConfig();
+            state.brollSession.min_shot_duration = config.min_shot_duration;
+            state.brollSession.max_shot_duration = config.max_shot_duration;
+            state.brollSession.prefer_sentence_boundary = config.prefer_sentence_boundary;
+            const payload = JSON.parse(JSON.stringify(state.brollSession));
             const run = async () => {
                 try {
-                    state.brollSession.aspect_ratio = els.brollAspectRatio.value;
-                    state.brollSession.subtitle_mode = els.brollSubtitleMode.value;
-
-                    // 保存分段配置
-                    const config = getBrollConfig();
-                    state.brollSession.min_shot_duration = config.min_shot_duration;
-                    state.brollSession.max_shot_duration = config.max_shot_duration;
-                    state.brollSession.prefer_sentence_boundary = config.prefer_sentence_boundary;
-
-                    await apiJson(`/api/broll/session/${encodeURIComponent(state.projectId)}`, {
+                    await apiJson(`/api/broll/session/${encodeURIComponent(projectId)}`, {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify(state.brollSession)
+                        body: JSON.stringify(payload)
                     });
                 } catch (error) {
                     console.warn('保存补画面工作区失败', error);
@@ -1704,12 +1726,21 @@
             const hasSubtitles = state.subtitles.length > 0;
             const hasCandidates = shots.some(shot => Array.isArray(shot.candidates) && shot.candidates.length);
             const hasDownloads = shots.some(shot => (shot.candidates || []).some(candidate => candidate.local_path));
+            const availableShotIds = new Set(shots.map(shot => shot.shot_id).filter(Boolean));
+            Array.from(state.brollSelectedShotIds).forEach(shotId => {
+                if (!availableShotIds.has(shotId)) {
+                    state.brollSelectedShotIds.delete(shotId);
+                }
+            });
 
             els.brollPlanBtn.disabled = !state.projectId || !hasSubtitles;
             els.brollSearchBtn.disabled = !state.projectId || shots.length === 0;
+            updateBrollSelectedSearchButton(shots);
             els.brollDownloadBtn.disabled = !state.projectId || !hasCandidates;
             els.brollComposeBtn.disabled = !state.projectId || shots.length === 0;
             if (shots.length === 0) {
+                state.brollSelectedShotIds.clear();
+                updateBrollSelectedSearchButton(shots);
                 els.brollShotList.innerHTML = '<div class="broll-status">暂无补画面方案。生成字幕后点击“生成补画面方案”。</div>';
                 setBrollStatus(hasSubtitles ? '可以生成补画面方案。' : '生成字幕后可创建补画面方案。');
                 hideBrollExportActions();
@@ -1739,8 +1770,10 @@
                                 </option>
                             `).join('') : '<option value="">暂无候选</option>'}
                         </select>
+                        <label class="broll-check"><input class="broll-shot-select" data-index="${index}" type="checkbox" ${shot.shot_id && state.brollSelectedShotIds.has(shot.shot_id) ? 'checked' : ''}>选中</label>
                         <label class="broll-check"><input class="broll-lock" data-index="${index}" type="checkbox" ${shot.locked ? 'checked' : ''}>锁定</label>
                         <label class="broll-check"><input class="broll-skip" data-index="${index}" type="checkbox" ${shot.skipped ? 'checked' : ''}>跳过</label>
+                        <button class="broll-shot-research" data-index="${index}" type="button" title="重新搜索当前镜头的 1-3 个候选素材">重搜</button>
                     </div>
                     <div class="broll-links">
                         ${selected && selected.source_url ? `<a href="${escapeHtml(selected.source_url)}" target="_blank" rel="noopener">素材原页</a>` : ''}
@@ -1753,23 +1786,35 @@
             showBrollExportActions(session);
         }
 
+        function updateBrollSelectedSearchButton(shots = null) {
+            if (!els.brollSearchSelectedBtn) return;
+            const session = state.brollSession || defaultBrollSession();
+            const currentShots = Array.isArray(shots) ? shots : (Array.isArray(session.shots) ? session.shots : []);
+            const currentIds = new Set(currentShots.map(shot => shot.shot_id).filter(Boolean));
+            const selectedCount = Array.from(state.brollSelectedShotIds || []).filter(shotId => currentIds.has(shotId)).length;
+            els.brollSearchSelectedBtn.disabled = !state.projectId || selectedCount === 0;
+            els.brollSearchSelectedBtn.textContent = selectedCount ? `重搜选中(${selectedCount})` : '重搜选中';
+        }
+
         let saveTimer = null;
         let brollSaveTimer = null;
         async function saveSessionSnapshot(immediate = false) {
             if (!state.projectId) return;
+            const projectId = state.projectId;
+            const payload = {
+                server_video_path: state.serverVideoPath,
+                video_name: state.videoName,
+                subtitles: state.subtitles.map(item => ({...item})),
+                style: {...state.style},
+                rendered_video_url: state.renderedVideoUrl,
+                language: els.language.value
+            };
             const run = async () => {
                 try {
-                    await apiJson(`/api/subtitle/session/${encodeURIComponent(state.projectId)}`, {
+                    await apiJson(`/api/subtitle/session/${encodeURIComponent(projectId)}`, {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({
-                            server_video_path: state.serverVideoPath,
-                            video_name: state.videoName,
-                            subtitles: state.subtitles,
-                            style: state.style,
-                            rendered_video_url: state.renderedVideoUrl,
-                            language: els.language.value
-                        })
+                        body: JSON.stringify(payload)
                     });
                     await loadSessions(false);
                 } catch (error) {
@@ -1945,7 +1990,7 @@
             return res.data.task_id;
         }
 
-        async function createBrollTask(url) {
+        async function createBrollTask(url, extraPayload = {}) {
             // 获取当前配置
             const config = getBrollConfig();
 
@@ -1963,7 +2008,8 @@
                     // 添加分段配置参数
                     min_shot_duration: config.min_shot_duration,
                     max_shot_duration: config.max_shot_duration,
-                    prefer_sentence_boundary: config.prefer_sentence_boundary
+                    prefer_sentence_boundary: config.prefer_sentence_boundary,
+                    ...extraPayload
                 })
             });
             return res.data.task_id;
@@ -2032,8 +2078,8 @@
             }
         }
 
-        async function runBrollTask(url, taskType, startedMessage, completedMessage) {
-            activeTaskPollToken++;
+        async function runBrollTask(url, taskType, startedMessage, completedMessage, extraPayload = {}) {
+            const pollToken = ++activeTaskPollToken;
             if (!state.projectId) {
                 setBrollStatus('请先选择或恢复字幕项目。', 'error');
                 return;
@@ -2042,25 +2088,33 @@
                 setBrollStatus('请先生成字幕，再使用补画面功能。', 'error');
                 return;
             }
+            const projectId = state.projectId;
+            const isCurrent = () => pollToken === activeTaskPollToken && state.projectId === projectId;
             readStyle();
             state.brollSession = state.brollSession || defaultBrollSession();
             state.brollSession.aspect_ratio = els.brollAspectRatio.value;
             state.brollSession.subtitle_mode = els.brollSubtitleMode.value;
+            if (taskType === 'broll_plan') {
+                state.brollSelectedShotIds.clear();
+                updateBrollSelectedSearchButton();
+            }
             setBrollStatus(startedMessage);
             setProgress(0, startedMessage);
             try {
                 await saveSessionSnapshot(true);
                 await saveBrollSessionSnapshot(true);
-                const taskId = await createBrollTask(url);
+                const taskId = await createBrollTask(url, extraPayload);
                 state.currentTaskId = taskId;
                 state.currentTaskType = taskType;
                 updateProjectMeta();
                 const result = await pollTask(taskId, (task, output) => {
+                    if (!isCurrent()) return;
                     applyBrollTaskOutput(output);
                     const msg = output.message || (task.status === 'running' ? startedMessage : task.status);
                     setProgress(task.progress || 0, msg);
                     setBrollStatus(msg, task.status === 'failed' ? 'error' : '');
-                }, 2 * 60 * 60 * 1000);
+                }, 2 * 60 * 60 * 1000, isCurrent);
+                if (!result || result.cancelled || !isCurrent()) return;
                 if (result.task.status === 'failed') {
                     throw new Error(result.task.error_message || result.output.message || `${startedMessage}失败`);
                 }
@@ -2073,15 +2127,17 @@
                 setBrollStatus(error.message || `${startedMessage}失败。`, 'error');
                 setProgress(0, error.message || `${startedMessage}失败`);
             } finally {
-                state.currentTaskId = '';
-                state.currentTaskType = '';
-                updateProjectMeta();
-                renderBrollWorkspace();
+                if (isCurrent()) {
+                    state.currentTaskId = '';
+                    state.currentTaskType = '';
+                    updateProjectMeta();
+                    renderBrollWorkspace();
+                }
             }
         }
 
         async function handleGenerate() {
-            activeTaskPollToken++;
+            const pollToken = ++activeTaskPollToken;
             if (!state.projectId && !state.videoFile) {
                 setStatus('请先选择一个视频文件，或从左侧记录恢复一个项目。', 'error');
                 return;
@@ -2107,6 +2163,8 @@
                     await persistSelectedVideo(state.videoFile, false);
                 }
                 const projectId = state.projectId;
+                const isCurrent = () => pollToken === activeTaskPollToken && state.projectId === projectId;
+                if (!isCurrent()) return;
 
                 setStatus('已创建字幕识别任务，正在后台识别...');
                 const taskId = await createSubtitleGenerateTask(projectId);
@@ -2116,6 +2174,7 @@
                 await saveSessionSnapshot(true);
 
                 const result = await pollTask(taskId, (task, output) => {
+                    if (!isCurrent()) return;
                     const subtitles = Array.isArray(output.subtitles) ? output.subtitles : [];
                     if (subtitles.length !== state.subtitles.length) {
                         state.subtitles = subtitles
@@ -2132,7 +2191,8 @@
                     const msg = output.message || (task.status === 'running' ? '正在识别语音' : task.status);
                     setProgress(task.progress || 0, msg);
                     setStatus(msg, task.status === 'failed' ? 'error' : '');
-                });
+                }, 2 * 60 * 60 * 1000, isCurrent);
+                if (!result || result.cancelled || !isCurrent()) return;
 
                 if (result.task.status === 'failed') {
                     throw new Error(result.task.error_message || result.output.message || '字幕生成失败');
@@ -2149,12 +2209,17 @@
                 setStatus(error.message || '字幕生成失败。', 'error');
                 setProgress(0, error.message || '字幕生成失败');
             } finally {
-                els.generateBtn.disabled = false;
+                if (pollToken === activeTaskPollToken) {
+                    state.currentTaskId = '';
+                    state.currentTaskType = '';
+                    updateProjectMeta();
+                    els.generateBtn.disabled = false;
+                }
             }
         }
 
         async function renderSubtitleVideo() {
-            activeTaskPollToken++;
+            const pollToken = ++activeTaskPollToken;
             if (!state.subtitles.length) {
                 setStatus('请先生成字幕。', 'error');
                 return;
@@ -2171,16 +2236,20 @@
             setProgress(0, '准备导出视频');
 
             try {
+                const projectId = state.projectId;
+                const isCurrent = () => pollToken === activeTaskPollToken && state.projectId === projectId;
                 await saveSessionSnapshot(true);
                 const taskId = await createRenderVideoTask();
                 state.renderTaskId = taskId;
                 state.currentTaskId = taskId;
                 state.currentTaskType = 'subtitle_render_video';
                 const result = await pollTask(taskId, (task, output) => {
+                    if (!isCurrent()) return;
                     const msg = output.message || (task.status === 'running' ? '正在导出带字幕视频' : task.status);
                     setProgress(task.progress || 0, msg);
                     setStatus(msg, task.status === 'failed' ? 'error' : '');
-                });
+                }, 2 * 60 * 60 * 1000, isCurrent);
+                if (!result || result.cancelled || !isCurrent()) return;
 
                 if (result.task.status === 'failed') {
                     throw new Error(result.task.error_message || result.output.message || '导出带字幕视频失败');
@@ -2205,7 +2274,12 @@
                 setStatus(error.message || '导出带字幕视频失败。', 'error');
                 setProgress(0, error.message || '导出带字幕视频失败');
             } finally {
-                els.renderVideoBtn.disabled = state.subtitles.length === 0;
+                if (pollToken === activeTaskPollToken) {
+                    state.currentTaskId = '';
+                    state.currentTaskType = '';
+                    updateProjectMeta();
+                    els.renderVideoBtn.disabled = state.subtitles.length === 0;
+                }
             }
         }
 
@@ -2469,6 +2543,21 @@
             await loadBrollProviders();
             runBrollTask('/api/broll/search-task', 'broll_search', '正在搜索补画面素材', '素材候选搜索完成');
         });
+        els.brollSearchSelectedBtn.addEventListener('click', async () => {
+            const shotIds = Array.from(state.brollSelectedShotIds);
+            if (!shotIds.length) {
+                setBrollStatus('请先勾选需要重搜的镜头。', 'error');
+                return;
+            }
+            await loadBrollProviders();
+            runBrollTask(
+                '/api/broll/search-task',
+                'broll_search',
+                `正在重新搜索 ${shotIds.length} 个镜头素材`,
+                '选中镜头素材已更新',
+                {shot_ids: shotIds}
+            );
+        });
         els.brollDownloadBtn.addEventListener('click', () => runBrollTask(
             '/api/broll/download-task',
             'broll_download',
@@ -2524,13 +2613,25 @@
         els.brollShotList.addEventListener('change', event => {
             if (!state.brollSession || !Array.isArray(state.brollSession.shots)) return;
             const select = event.target.closest('.broll-candidate-select');
+            const shotSelect = event.target.closest('.broll-shot-select');
             const lock = event.target.closest('.broll-lock');
             const skip = event.target.closest('.broll-skip');
-            const target = select || lock || skip;
+            const target = select || shotSelect || lock || skip;
             if (!target || target.dataset.index === undefined) return;
             const index = Number(target.dataset.index);
             const shot = state.brollSession.shots[index];
             if (!shot) return;
+            if (shotSelect) {
+                if (shot.shot_id) {
+                    if (shotSelect.checked) {
+                        state.brollSelectedShotIds.add(shot.shot_id);
+                    } else {
+                        state.brollSelectedShotIds.delete(shot.shot_id);
+                    }
+                }
+                renderBrollWorkspace();
+                return;
+            }
             if (select) {
                 shot.selected_candidate_id = select.value || '';
             }
@@ -2542,6 +2643,20 @@
             }
             renderBrollWorkspace();
             saveBrollSessionSnapshot(false);
+        });
+        els.brollShotList.addEventListener('click', event => {
+            const button = event.target.closest('.broll-shot-research');
+            if (!button || button.dataset.index === undefined) return;
+            if (!state.brollSession || !Array.isArray(state.brollSession.shots)) return;
+            const shot = state.brollSession.shots[Number(button.dataset.index)];
+            if (!shot || !shot.shot_id) return;
+            runBrollTask(
+                '/api/broll/search-task',
+                'broll_search',
+                '正在重新搜索当前镜头素材',
+                '当前镜头素材已更新',
+                {shot_id: shot.shot_id}
+            );
         });
         [els.brollAspectRatio, els.brollSubtitleMode].forEach(el => {
             el.addEventListener('change', () => {

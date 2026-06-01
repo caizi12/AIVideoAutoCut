@@ -52,6 +52,8 @@ class NasaVideoProvider(StockVideoProvider):
             'candidate_id': f'nasa_{nasa_id}',
             'provider': self.provider_id,
             'source_id': nasa_id,
+            'title': data.get('title') or nasa_id,
+            'description': data.get('description') or '',
             'source_url': source_url,
             'author': author,
             'license': self.license_name,

@@ -53,6 +53,8 @@ class PixabayProvider(StockVideoProvider):
             'candidate_id': f'pixabay_{source_id}',
             'provider': self.provider_id,
             'source_id': source_id,
+            'title': item.get('tags') or source_id,
+            'description': item.get('tags') or '',
             'source_url': item.get('pageURL') or '',
             'author': item.get('user') or '',
             'license': self.license_name,

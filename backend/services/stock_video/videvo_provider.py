@@ -86,6 +86,7 @@ class VidevoProvider(StockVideoProvider):
 
                 # 提取视频ID
                 video_id = video_path.split('/')[-1].split('-')[0] if '/' in video_path else f'vid_{idx}'
+                title = video_path.strip('/').split('/')[-1].replace('-', ' ').title()
 
                 # 获取视频详情页（可选，用于获取更多信息）
                 # 为了性能，这里只返回基本信息
@@ -93,6 +94,8 @@ class VidevoProvider(StockVideoProvider):
                     'candidate_id': f'videvo_{video_id}',
                     'provider': self.provider_id,
                     'source_id': video_id,
+                    'title': title,
+                    'description': title,
                     'source_url': video_url,
                     'author': 'Videvo',
                     'license': self.license_name,

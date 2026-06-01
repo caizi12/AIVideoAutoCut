@@ -93,6 +93,7 @@ class LifeOfVidsProvider(StockVideoProvider):
                 video_id = video_path.strip('/').split('/')[-1].split('?')[0]
                 if not video_id:
                     video_id = f'vid_{idx}'
+                title = video_id.replace('-', ' ').replace('_', ' ').title()
 
                 # 处理缩略图URL
                 if not thumbnail.startswith('http'):
@@ -102,6 +103,8 @@ class LifeOfVidsProvider(StockVideoProvider):
                     'candidate_id': f'lifeofvids_{video_id}',
                     'provider': self.provider_id,
                     'source_id': video_id,
+                    'title': title,
+                    'description': title,
                     'source_url': video_url,
                     'author': 'Life of Vids',
                     'license': self.license_name,

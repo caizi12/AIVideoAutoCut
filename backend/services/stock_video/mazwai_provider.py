@@ -90,6 +90,8 @@ class MazwaiProvider(StockVideoProvider):
                     'candidate_id': f'mazwai_{video_id}',
                     'provider': self.provider_id,
                     'source_id': video_id,
+                    'title': title,
+                    'description': title,
                     'source_url': video_url,
                     'author': f'Mazwai - {title}',
                     'license': self.license_name,

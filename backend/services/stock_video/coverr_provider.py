@@ -76,6 +76,7 @@ class CoverrProvider(StockVideoProvider):
 
                 # 提取视频ID
                 video_id = video_path.strip('/').split('/')[-1]
+                title = video_id.replace('-', ' ').title()
 
                 # 处理缩略图URL
                 if not thumbnail.startswith('http'):
@@ -85,6 +86,8 @@ class CoverrProvider(StockVideoProvider):
                     'candidate_id': f'coverr_{video_id}',
                     'provider': self.provider_id,
                     'source_id': video_id,
+                    'title': title,
+                    'description': title,
                     'source_url': video_url,
                     'author': 'Coverr',
                     'license': self.license_name,

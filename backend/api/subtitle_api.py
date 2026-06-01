@@ -249,6 +249,18 @@ def _task_output(task):
     return _parse_json_dict((task or {}).get('output_data'))
 
 
+def _latest_completed_subtitles(db_manager, project_id, project=None):
+    """从已完成的字幕任务中恢复最近一次有效字幕。"""
+    try:
+        tasks = (project or {}).get('tasks') or db_manager.get_tasks(project_id) or []
+    except Exception:
+        tasks = []
+    completed_gen = _latest_task(tasks, 'subtitle_generate', ['completed'])
+    if not completed_gen:
+        return []
+    return _normalize_subtitle_items(_task_output(completed_gen).get('subtitles') or [])
+
+
 def _extract_audio_from_project(data, db_manager):
     """根据项目素材定位或提取可供 ASR 使用的音频。"""
     project_id = data.get('project_id')
@@ -801,6 +813,13 @@ def create_generate_subtitle_handler(db_manager):
                     except Exception:
                         pass
 
+            if subtitles:
+                _merge_subtitle_session(db_manager, project_id, {
+                    'subtitles': subtitles,
+                    'language': language
+                })
+                _update_project_status(db_manager, project_id, 'completed')
+
             return jsonify({
                 'code': 0,
                 'msg': '字幕生成成功',
@@ -1241,6 +1260,8 @@ def create_render_subtitle_video_task_handler(db_manager):
         try:
             data = request.get_json() or {}
             project_id = data.get('project_id')
+            if not project_id:
+                return jsonify({'code': 1, 'msg': '缺少项目ID', 'data': None}), 400
             if db_manager is None:
                 return jsonify({'code': 1, 'msg': '字幕导出服务未绑定数据库管理器', 'data': None}), 500
 
@@ -1291,8 +1312,8 @@ def _build_session_payload(db_manager, project_id):
         active_task = None
 
     subtitles = _normalize_subtitle_items(saved.get('subtitles'))
-    if not subtitles and completed_gen:
-        subtitles = _normalize_subtitle_items(_task_output(completed_gen).get('subtitles') or [])
+    if not subtitles:
+        subtitles = _latest_completed_subtitles(db_manager, project_id, project)
 
     rendered_video_url = saved.get('rendered_video_url') or ''
     if not rendered_video_url and completed_render:
@@ -1356,7 +1377,16 @@ def create_session_save_handler(db_manager):
             if 'video_name' in data:
                 updates['video_name'] = data.get('video_name') or ''
             if 'subtitles' in data:
-                updates['subtitles'] = _normalize_subtitle_items(data.get('subtitles') or [])
+                incoming_subtitles = _normalize_subtitle_items(data.get('subtitles') or [])
+                if incoming_subtitles:
+                    updates['subtitles'] = incoming_subtitles
+                else:
+                    project = db_manager.get_project(project_id)
+                    saved = _get_saved_subtitle_session(project)
+                    existing_subtitles = _normalize_subtitle_items(saved.get('subtitles'))
+                    fallback_subtitles = _latest_completed_subtitles(db_manager, project_id, project)
+                    if not existing_subtitles and not fallback_subtitles:
+                        updates['subtitles'] = []
             if 'style' in data:
                 updates['style'] = _normalize_subtitle_style(data.get('style') or {})
             if 'rendered_video_url' in data:

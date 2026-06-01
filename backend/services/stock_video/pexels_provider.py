@@ -57,6 +57,8 @@ class PexelsProvider(StockVideoProvider):
             'candidate_id': f'pexels_{source_id}',
             'provider': self.provider_id,
             'source_id': source_id,
+            'title': item.get('url') or source_id,
+            'description': '',
             'source_url': item.get('url') or '',
             'author': user.get('name') or '',
             'license': self.license_name,

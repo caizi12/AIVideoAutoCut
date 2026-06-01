@@ -90,6 +90,7 @@ class SplitshireProvider(StockVideoProvider):
                 video_id = article_url.strip('/').split('/')[-1].split('?')[0]
                 if not video_id:
                     video_id = f'vid_{idx}'
+                title = video_id.replace('-', ' ').replace('_', ' ').title()
 
                 # 处理缩略图URL
                 if not thumbnail.startswith('http'):
@@ -99,6 +100,8 @@ class SplitshireProvider(StockVideoProvider):
                     'candidate_id': f'splitshire_{video_id}',
                     'provider': self.provider_id,
                     'source_id': video_id,
+                    'title': title,
+                    'description': title,
                     'source_url': article_url,
                     'author': 'Splitshire',
                     'license': self.license_name,

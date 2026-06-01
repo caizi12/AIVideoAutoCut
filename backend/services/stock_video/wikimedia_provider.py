@@ -58,6 +58,8 @@ class WikimediaCommonsProvider(StockVideoProvider):
             'candidate_id': f'wikimedia_{source_id}',
             'provider': self.provider_id,
             'source_id': source_id,
+            'title': page.get('title') or source_id,
+            'description': self._strip_html(ext.get('ImageDescription') or ext.get('ObjectName') or ''),
             'source_url': info.get('descriptionurl') or '',
             'author': author,
             'license': self._strip_html(license_name),
